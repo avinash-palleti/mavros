@@ -18,7 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   tf2_eigen
   angles
-  libmavconn
+  libmavrosconn
   rosconsole_bridge
   eigen_conversions
   mavros_msgs
@@ -73,7 +73,7 @@ catkin_python_setup()
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES mavros
-  CATKIN_DEPENDS diagnostic_msgs diagnostic_updater pluginlib roscpp sensor_msgs nav_msgs geographic_msgs std_msgs tf2_ros geometry_msgs libmavconn message_runtime eigen_conversions mavros_msgs
+  CATKIN_DEPENDS diagnostic_msgs diagnostic_updater pluginlib roscpp sensor_msgs nav_msgs geographic_msgs std_msgs tf2_ros geometry_msgs librosmavconn message_runtime eigen_conversions mavros_msgs
   DEPENDS Boost EIGEN3 GeographicLib
 )
 

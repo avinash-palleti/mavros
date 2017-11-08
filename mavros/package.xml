@@ -38,7 +38,7 @@
   <build_depend>cmake_modules</build_depend>
   <depend>diagnostic_updater</depend>
   <depend>eigen_conversions</depend>
-  <depend>libmavconn</depend>
+  <depend>librosmavconn</depend>
   <depend>pluginlib</depend>
   <depend>rosconsole_bridge</depend>
   <depend>roscpp</depend>
