@@ -73,7 +73,7 @@ catkin_python_setup()
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES mavros
-  CATKIN_DEPENDS diagnostic_msgs diagnostic_updater pluginlib roscpp sensor_msgs nav_msgs geographic_msgs std_msgs tf2_ros geometry_msgs librosmavconn message_runtime eigen_conversions mavros_msgs
+  CATKIN_DEPENDS diagnostic_msgs diagnostic_updater pluginlib roscpp sensor_msgs nav_msgs geographic_msgs std_msgs tf2_ros geometry_msgs libmavrosconn message_runtime eigen_conversions mavros_msgs
   DEPENDS Boost EIGEN3 GeographicLib
 )
 

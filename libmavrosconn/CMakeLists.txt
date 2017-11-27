@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(librosmavconn)
+project(libmavrosconn)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -26,7 +26,7 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES mavconn
   DEPENDS Boost mavlink console_bridge
-  CFG_EXTRAS librosmavconn-extras.cmake
+  CFG_EXTRAS libmavrosconn-extras.cmake
 )
 
 ###########
