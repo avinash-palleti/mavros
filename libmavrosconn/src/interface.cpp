@@ -50,6 +50,7 @@ MAVConnInterface::MAVConnInterface(uint8_t system_id, uint8_t component_id) :
 {
 	conn_id = conn_id_counter.fetch_add(1);
 	std::call_once(init_flag, init_msg_entry);
+	mavconn = new MAVConn();
 }
 
 mavlink_status_t MAVConnInterface::get_status()
@@ -82,6 +83,11 @@ MAVConnInterface::IOStat MAVConnInterface::get_iostat()
 	return stat;
 }
 
+MAVConn* MAVConnInterface::get_mavlink_conn()
+{
+	return mavconn;
+}
+
 void MAVConnInterface::iostat_tx_add(size_t bytes)
 {
 	tx_total_bytes += bytes;
@@ -92,7 +98,7 @@ void MAVConnInterface::iostat_rx_add(size_t bytes)
 	rx_total_bytes += bytes;
 }
 
-void MAVConnInterface::parse_buffer(const char *pfx, uint8_t *buf, const size_t bufsize, size_t bytes_received)
+/*void MAVConnInterface::parse_buffer(const char *pfx, uint8_t *buf, const size_t bufsize, size_t bytes_received)
 {
 	mavlink::mavlink_status_t status;
 	mavlink::mavlink_message_t message;
@@ -123,7 +129,7 @@ void MAVConnInterface::parse_buffer(const char *pfx, uint8_t *buf, const size_t 
 				message_received_cb(&message, msg_received);
 		}
 	}
-}
+}*/
 
 void MAVConnInterface::log_recv(const char *pfx, mavlink_message_t &msg, Framing framing)
 {

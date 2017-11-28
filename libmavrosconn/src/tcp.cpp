@@ -209,7 +209,7 @@ void MAVConnTCPClient::do_recv()
 					return;
 				}
 
-				sthis->parse_buffer(PFX, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
+				sthis->get_mavlink_conn()->parse_buffer(PFX, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
 				sthis->do_recv();
 			});
 }
