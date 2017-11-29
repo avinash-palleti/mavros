@@ -211,7 +211,7 @@ void MAVConnUDP::send_message(const mavlink::Message &message)
 		if (tx_q.size() >= MAX_TXQ_SIZE)
 			throw std::length_error("MAVConnUDP::send_message: TX queue overflow");
 
-		tx_q.emplace_back(message, get_status_p(), sys_id, comp_id);
+		tx_q.emplace_back(message, get_mavlink_conn()->get_status_p(), sys_id, comp_id);
 	}
 	io_service.post(std::bind(&MAVConnUDP::do_sendto, shared_from_this(), true));
 }
@@ -235,7 +235,8 @@ void MAVConnUDP::do_recvfrom()
 					sthis->last_remote_ep = sthis->remote_ep;
 				}
 
-				sthis->get_mavlink_conn()->parse_buffer(PFX, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
+				if(sthis->isMavlink(sthis->rx_buf.data(), sthis->rx_buf.size()))
+					sthis->get_mavlink_conn()->parse_buffer(PFX, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
 				sthis->do_recvfrom();
 			});
 }

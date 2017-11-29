@@ -31,7 +31,14 @@ void MAVConn::parse_buffer(const char *pfx, uint8_t *buf, const size_t bufsize, 
 	}
 }
 
-MAVConn::MAVConn()
+mavlink::mavlink_status_t MAVConn::get_status()
+{
+	return m_status;
+}
+
+MAVConn::MAVConn() :
+	m_buffer{},
+	m_status{}
 {
 // Default constructor
 }

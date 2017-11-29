@@ -192,7 +192,7 @@ void MAVConnTCPClient::send_message(const mavlink::Message &message)
 		if (tx_q.size() >= MAX_TXQ_SIZE)
 			throw std::length_error("MAVConnTCPClient::send_message: TX queue overflow");
 
-		tx_q.emplace_back(message, get_status_p(), sys_id, comp_id);
+		tx_q.emplace_back(message, get_mavlink_conn()->get_status_p(), sys_id, comp_id);
 	}
 	socket.get_io_service().post(std::bind(&MAVConnTCPClient::do_send, shared_from_this(), true));
 }
@@ -208,8 +208,8 @@ void MAVConnTCPClient::do_recv()
 					sthis->close();
 					return;
 				}
-
-				sthis->get_mavlink_conn()->parse_buffer(PFX, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
+				if (sthis->isMavlink(sthis->rx_buf.data(), sthis->rx_buf.size()))
+					sthis->get_mavlink_conn()->parse_buffer(PFX, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
 				sthis->do_recv();
 			});
 }

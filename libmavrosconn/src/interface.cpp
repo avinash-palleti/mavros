@@ -40,8 +40,6 @@ std::atomic<size_t> MAVConnInterface::conn_id_counter {0};
 MAVConnInterface::MAVConnInterface(uint8_t system_id, uint8_t component_id) :
 	sys_id(system_id),
 	comp_id(component_id),
-	m_status {},
-	m_buffer {},
 	tx_total_bytes(0),
 	rx_total_bytes(0),
 	last_tx_total_bytes(0),
@@ -53,10 +51,6 @@ MAVConnInterface::MAVConnInterface(uint8_t system_id, uint8_t component_id) :
 	mavconn = new MAVConn();
 }
 
-mavlink_status_t MAVConnInterface::get_status()
-{
-	return m_status;
-}
 
 MAVConnInterface::IOStat MAVConnInterface::get_iostat()
 {
@@ -96,6 +90,46 @@ void MAVConnInterface::iostat_tx_add(size_t bytes)
 void MAVConnInterface::iostat_rx_add(size_t bytes)
 {
 	rx_total_bytes += bytes;
+}
+
+mavlink_status_t MAVConnInterface::get_status()
+{
+       return get_mavlink_conn()->get_status();
+}
+
+bool MAVConnInterface::isMavlink(uint8_t *buf, const size_t bufsize)
+{
+	unsigned i;
+	if(bufsize < 3)
+		return false;
+	i = 0;
+	while (i < (bufsize - 3) && buf[i] != 253 && buf[i] != 254)
+		i++;
+	// We need at least the first three bytes to get packet len
+	if (i == bufsize - 3) {
+	return false;
+	}
+
+	uint16_t packet_len;
+	if (buf[i] == 253) {
+		uint8_t payload_len = buf[i + 1];
+		uint8_t incompat_flags = buf[i + 2];
+		packet_len = payload_len + 12;
+
+		if (incompat_flags & 0x1) { // signing
+			packet_len += 13;
+		}
+	} else {
+		packet_len = buf[i + 1] + 8;
+	}
+
+
+	// packet is bigger than what we've read, better luck next time
+	if (i + packet_len > bufsize) {
+		return false;
+	}
+
+	return true;
 }
 
 /*void MAVConnInterface::parse_buffer(const char *pfx, uint8_t *buf, const size_t bufsize, size_t bytes_received)
@@ -190,14 +224,14 @@ void MAVConnInterface::send_message_ignore_drop(const mavlink::Message &msg)
 void MAVConnInterface::set_protocol_version(Protocol pver)
 {
 	if (pver == Protocol::V10)
-		m_status.flags |= MAVLINK_STATUS_FLAG_OUT_MAVLINK1;
+		get_mavlink_conn()->get_status_p()->flags |= MAVLINK_STATUS_FLAG_OUT_MAVLINK1;
 	else
-		m_status.flags &= ~(MAVLINK_STATUS_FLAG_OUT_MAVLINK1);
+		get_mavlink_conn()->get_status_p()->flags &= ~(MAVLINK_STATUS_FLAG_OUT_MAVLINK1);
 }
 
 Protocol MAVConnInterface::get_protocol_version()
 {
-	if (m_status.flags & MAVLINK_STATUS_FLAG_OUT_MAVLINK1)
+	if (get_mavlink_conn()->get_status_p()->flags & MAVLINK_STATUS_FLAG_OUT_MAVLINK1)
 		return Protocol::V10;
 	else
 		return Protocol::V20;

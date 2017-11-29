@@ -221,19 +221,11 @@ protected:
 	//! Channel number used for logging.
 	size_t conn_id;
 
-	inline mavlink::mavlink_status_t *get_status_p() {
-		return &m_status;
-	}
-
-	inline mavlink::mavlink_message_t *get_buffer_p() {
-		return &m_buffer;
-	}
-
 	/**
 	 * Parse buffer and emit massage_received.
 	 */
 //	void parse_buffer(const char *pfx, uint8_t *buf, const size_t bufsize, size_t bytes_received);
-
+	bool isMavlink(uint8_t *buf, const size_t bufsize);
 	void iostat_tx_add(size_t bytes);
 	void iostat_rx_add(size_t bytes);
 
@@ -243,9 +235,6 @@ protected:
 
 private:
 	friend const mavlink::mavlink_msg_entry_t* mavlink::mavlink_get_msg_entry(uint32_t msgid);
-
-	mavlink::mavlink_status_t m_status;
-	mavlink::mavlink_message_t m_buffer;
 
 	std::atomic<size_t> tx_total_bytes, rx_total_bytes;
 	std::recursive_mutex iostat_mutex;
