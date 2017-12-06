@@ -20,6 +20,7 @@
 #include <Eigen/Geometry>
 #include <mavconn/thread_utils.h>
 #include <mavros_msgs/mavlink_convert.h>
+#include <mavros_msgs/rtps_convert.h>
 #include <mavconn/mavlink_dialect.h>
 
 #include <ros/console.h>

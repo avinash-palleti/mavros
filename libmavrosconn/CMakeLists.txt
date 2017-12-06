@@ -48,6 +48,7 @@ add_library(mavconn
   src/udp.cpp
   src/tcp.cpp
   src/mavlink/mavconn.cpp
+  src/cdr/cdrconn.cpp
 )
 target_link_libraries(mavconn
   ${Boost_LIBRARIES}

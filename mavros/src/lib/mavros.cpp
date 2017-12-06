@@ -108,6 +108,7 @@ MavRos::MavRos() :
 
 	// ROS mavlink bridge
 	mavlink_pub = mavlink_nh.advertise<mavros_msgs::Mavlink>("from", 100);
+	cdr_pub = mavlink_nh.advertise<mavros_msgs::Rtps>("from", 100);
 	mavlink_sub = mavlink_nh.subscribe("to", 100, &MavRos::mavlink_sub_cb, this,
 		ros::TransportHints()
 			.unreliable().maxDatagramSize(1024)
@@ -138,6 +139,12 @@ MavRos::MavRos() :
 		if (gcs_link)
 			gcs_link->send_message_ignore_drop(msg);
 	};
+
+	fcu_link->get_cdr_conn()->message_received_cb = [this](const uint8_t topic_id, const uint8_t len, const uint8_t* buffer) {
+		cdr_pub_cb(topic_id, len, buffer);
+	//	plugin_route_cb(topic_id, buffer); TODO: Need to check purpose of this incase of mavlink
+	};
+	
 
 	fcu_link->port_closed_cb = []() {
 		ROS_ERROR("FCU connection closed, mavros will be terminated.");
@@ -199,6 +206,20 @@ void MavRos::mavlink_pub_cb(const mavlink_message_t *mmsg, Framing framing)
 	rmsg->header.stamp = ros::Time::now();
 	mavros_msgs::mavlink::convert(*mmsg, *rmsg, enum_value(framing));
 	mavlink_pub.publish(rmsg);
+}
+
+void MavRos::cdr_pub_cb(const uint8_t topic_id, const uint8_t len,  const uint8_t* buffer)
+{
+	auto rmsg = boost::make_shared<mavros_msgs::Rtps>();
+
+	if  (cdr_pub.getNumSubscribers() == 0)
+		return;
+
+	rmsg->header.stamp = ros::Time::now();
+	rmsg->topic_id = topic_id;
+	rmsg->len = len;
+	rmsg->buffer = std::move(mavros_msgs::Rtps::_buffer_type(buffer, buffer + len));
+	cdr_pub.publish(rmsg);
 }
 
 void MavRos::mavlink_sub_cb(const mavros_msgs::Mavlink::ConstPtr &rmsg)

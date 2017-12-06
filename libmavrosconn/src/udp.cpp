@@ -234,9 +234,11 @@ void MAVConnUDP::do_recvfrom()
 					sthis->remote_exists = true;
 					sthis->last_remote_ep = sthis->remote_ep;
 				}
-
+				uint8_t start;
 				if(sthis->isMavlink(sthis->rx_buf.data(), sthis->rx_buf.size()))
 					sthis->get_mavlink_conn()->parse_buffer(PFX, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
+				else if(sthis->isCDR(sthis->rx_buf.data(), sthis->rx_buf.size(), &start))
+					sthis->get_cdr_conn()->parse_buffer(start, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
 				sthis->do_recvfrom();
 			});
 }

@@ -49,6 +49,7 @@ MAVConnInterface::MAVConnInterface(uint8_t system_id, uint8_t component_id) :
 	conn_id = conn_id_counter.fetch_add(1);
 	std::call_once(init_flag, init_msg_entry);
 	mavconn = new MAVConn();
+	cdrconn = new CDRConn();
 }
 
 
@@ -80,6 +81,11 @@ MAVConnInterface::IOStat MAVConnInterface::get_iostat()
 MAVConn* MAVConnInterface::get_mavlink_conn()
 {
 	return mavconn;
+}
+
+CDRConn* MAVConnInterface::get_cdr_conn()
+{
+	return cdrconn;
 }
 
 void MAVConnInterface::iostat_tx_add(size_t bytes)
@@ -129,6 +135,28 @@ bool MAVConnInterface::isMavlink(uint8_t *buf, const size_t bufsize)
 		return false;
 	}
 
+	return true;
+}
+
+bool MAVConnInterface::isCDR(uint8_t *buf, const size_t bufsize, uint8_t* start)
+{
+	uint8_t buf_start = 0;
+	uint16_t len;
+	
+	if (bufsize < sizeof(struct Header)) // starting ">>>" + topic + seq + len + crchi + crclow
+		return false;
+
+	// look for starting ">>>"
+	for (buf_start = 0; buf_start + sizeof(struct Header) <= bufsize; ++buf_start) {
+		if ('>' == buf[buf_start] && memcmp(buf + buf_start, ">>>", 3) == 0) {
+			break;
+		}
+	}
+
+	if (buf_start >= (bufsize - sizeof(struct Header))) {
+		return false;
+	}
+	*start = buf_start;
 	return true;
 }
 

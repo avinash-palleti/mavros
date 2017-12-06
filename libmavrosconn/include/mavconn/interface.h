@@ -35,6 +35,7 @@
 #include <stdexcept>
 #include <unordered_map>
 #include <mavconn/mavconn.h>
+#include <mavconn/cdrconn.h>
 #include <mavconn/mavlink_dialect.h>
 
 
@@ -205,6 +206,7 @@ public:
 
 	static std::vector<std::string> get_known_dialects();
 	MAVConn* get_mavlink_conn();
+	CDRConn* get_cdr_conn();
 
 protected:
 	uint8_t sys_id;		//!< Connection System Id
@@ -226,6 +228,7 @@ protected:
 	 */
 //	void parse_buffer(const char *pfx, uint8_t *buf, const size_t bufsize, size_t bytes_received);
 	bool isMavlink(uint8_t *buf, const size_t bufsize);
+	bool isCDR(uint8_t *buf, const size_t bufsize, uint8_t *start);
 	void iostat_tx_add(size_t bytes);
 	void iostat_rx_add(size_t bytes);
 
@@ -254,5 +257,6 @@ private:
 	 */
 	static void init_msg_entry();
 	MAVConn* mavconn;
+	CDRConn* cdrconn;
 };
 }	// namespace mavconn

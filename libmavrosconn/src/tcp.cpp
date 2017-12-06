@@ -208,8 +208,11 @@ void MAVConnTCPClient::do_recv()
 					sthis->close();
 					return;
 				}
+				uint8_t start;
 				if (sthis->isMavlink(sthis->rx_buf.data(), sthis->rx_buf.size()))
 					sthis->get_mavlink_conn()->parse_buffer(PFX, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
+				else if(sthis->isCDR(sthis->rx_buf.data(), sthis->rx_buf.size(), &start))
+					sthis->get_cdr_conn()->parse_buffer(start, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
 				sthis->do_recv();
 			});
 }

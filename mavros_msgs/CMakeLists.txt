@@ -41,6 +41,7 @@ add_message_files(
   Waypoint.msg
   WaypointList.msg
   WaypointReached.msg
+  Rtps.msg
 )
 
 add_service_files(

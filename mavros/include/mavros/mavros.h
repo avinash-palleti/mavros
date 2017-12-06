@@ -46,6 +46,7 @@ private:
 
 	ros::Publisher mavlink_pub;
 	ros::Subscriber mavlink_sub;
+	ros::Publisher cdr_pub;
 
 	diagnostic_updater::Updater gcs_diag_updater;
 	MavlinkDiag fcu_link_diag;
@@ -62,6 +63,7 @@ private:
 
 	//! fcu link -> ros
 	void mavlink_pub_cb(const mavlink::mavlink_message_t *mmsg, const mavconn::Framing framing);
+	void cdr_pub_cb(const uint8_t topic_id, const uint8_t len, const uint8_t* buffer);
 	//! ros -> fcu link
 	void mavlink_sub_cb(const mavros_msgs::Mavlink::ConstPtr &rmsg);
 
