@@ -177,6 +177,28 @@ void MAVConnTCPClient::send_message(const mavlink_message_t *message)
 	socket.get_io_service().post(std::bind(&MAVConnTCPClient::do_send, shared_from_this(), true));
 }
 
+void MAVConnTCPClient::send_header(const Header *header)
+{
+
+	if (!is_open()) {
+		logError(PFXd "send: channel closed!", conn_id);
+		return;
+	}
+
+	//log_send_obj(PFX, header);
+
+	{
+		lock_guard lock(mutex);
+
+		if (tx_q.size() >= MAX_TXQ_SIZE)
+			throw std::length_error("MAVConnTCPClient::send_message: TX queue overflow");
+
+		tx_q.emplace_back(header);
+	}
+	io_service.post(std::bind(&MAVConnTCPClient::do_send, shared_from_this(), true));
+	
+}
+
 void MAVConnTCPClient::send_message(const mavlink::Message &message)
 {
 	if (!is_open()) {
@@ -386,6 +408,14 @@ void MAVConnTCPServer::send_message(const mavlink::Message &message)
 	lock_guard lock(mutex);
 	for (auto &instp : client_list) {
 		instp->send_message(message);
+	}
+}
+
+void MAVConnTCPServer::send_header(const Header *header)
+{
+	lock_guard lock(mutex);
+	for (auto &instp : client_list) {
+		instp->send_header(header);
 	}
 }
 

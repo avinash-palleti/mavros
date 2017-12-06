@@ -47,7 +47,7 @@ public:
 	void send_message(const mavlink::mavlink_message_t *message) override;
 	void send_message(const mavlink::Message &message) override;
 	void send_bytes(const uint8_t *bytes, size_t length) override;
-
+	void send_header(const Header *header) override;
 	inline bool is_open() override {
 		return serial_dev.is_open();
 	}

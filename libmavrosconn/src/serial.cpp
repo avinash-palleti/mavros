@@ -152,6 +152,27 @@ void MAVConnSerial::send_message(const mavlink::Message &message)
 	io_service.post(std::bind(&MAVConnSerial::do_write, shared_from_this(), true));
 }
 
+void MAVConnSerial::send_header(const Header *header)
+{
+	if (!is_open()) {
+		logError(PFXd "send: channel closed!", conn_id);
+		return;
+	}
+
+	//log_send_obj(PFX, header);
+
+	{
+		lock_guard lock(mutex);
+
+		if (tx_q.size() >= MAX_TXQ_SIZE)
+			throw std::length_error("MAVConnSerial::send_message: TX queue overflow");
+
+		tx_q.emplace_back(header);
+	}
+	io_service.post(std::bind(&MAVConnSerial::do_write, shared_from_this(), true));
+	
+}
+
 void MAVConnSerial::do_read(void)
 {
 	auto sthis = shared_from_this();

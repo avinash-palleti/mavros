@@ -81,6 +81,23 @@ uint16_t CDRConn::crc16(uint8_t const *buffer, size_t len)
     return crc;
 }
 
+void CDRConn::getHeader(Header *header, const uint8_t topic_id, const uint8_t len, const uint8_t* buffer)
+{
+	int ret = 0;
+	static uint8_t seq = 0;
+
+	// [>,>,>,topic_ID,seq,payload_length,CRCHigh,CRCLow,payload_start, ... ,payload_end]
+
+	uint16_t crc = crc16((uint8_t *)buffer, len);
+	header->topic_ID = topic_id;
+	header->seq = seq++;
+	header->payload_len_h = (len >> 8) & 0xff;
+	header->payload_len_l = len & 0xff;
+	header->crc_h = (crc >> 8) & 0xff;
+	header->crc_l = crc & 0xff;
+
+}
+
 CDRConn::CDRConn()
 {
 // Default constructor

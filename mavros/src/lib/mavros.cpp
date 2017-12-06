@@ -113,6 +113,10 @@ MavRos::MavRos() :
 		ros::TransportHints()
 			.unreliable().maxDatagramSize(1024)
 			.reliable());
+	cdr_sub = mavlink_nh.subscribe("to", 100, &MavRos::cdr_sub_cb, this,
+		ros::TransportHints()
+			.unreliable().maxDatagramSize(1024)
+			.reliable());
 
 	// setup UAS and diag
 	mav_uas.set_tgt(tgt_system_id, tgt_component_id);
@@ -230,6 +234,15 @@ void MavRos::mavlink_sub_cb(const mavros_msgs::Mavlink::ConstPtr &rmsg)
 		UAS_FCU(&mav_uas)->send_message_ignore_drop(&mmsg);
 	else
 		ROS_ERROR("Drop mavlink packet: convert error.");
+}
+
+void MavRos::cdr_sub_cb(const mavros_msgs::Rtps::ConstPtr &rmsg)
+{
+	uint8_t topic_id = (*rmsg).topic_id;
+	uint8_t len = (*rmsg).len;
+	uint8_t buffer[MAX_BUFFER_SIZE];
+	std::copy((*rmsg).buffer.begin(), (*rmsg).buffer.end(), buffer); 
+	UAS_FCU(&mav_uas)->send_rtps_message(topic_id, len, buffer);
 }
 
 void MavRos::plugin_route_cb(const mavlink_message_t *mmsg, const Framing framing)

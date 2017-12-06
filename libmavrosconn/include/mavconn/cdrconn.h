@@ -36,6 +36,7 @@ public:
 	void parse_buffer(uint8_t start, uint8_t *buf, const size_t bufsize, size_t bytes_received);
 	CDRConn();
 	ReceivedCb message_received_cb;
+	void getHeader(Header*, uint8_t, uint8_t, const uint8_t*);
 private:
 	uint16_t crc16_byte(uint16_t crc, const uint8_t data);
 	uint16_t crc16(uint8_t const *buffer, size_t len);

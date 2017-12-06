@@ -155,6 +155,8 @@ public:
 	 * @brief Send message and ignore possible drop due to Tx queue limit
 	 */
 	void send_message_ignore_drop(const mavlink::Message &message);
+	void send_rtps_message(const uint8_t topic_id, const uint8_t len, const uint8_t* buffer);
+	virtual void send_header(const Header *header) = 0;
 
 	//! Message receive callback
 	ReceivedCb message_received_cb;
