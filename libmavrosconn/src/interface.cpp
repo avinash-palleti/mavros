@@ -249,20 +249,20 @@ void MAVConnInterface::send_message_ignore_drop(const mavlink::Message &msg)
 	}
 }
 
-void MAVConnInterface::send_rtps_message(const uint8_t topic_id, const uint8_t len, const uint8_t* buffer)
+void MAVConnInterface::send_rtps_message(cdr_message_t *cdr_message)
 {
 	static struct Header header {
 		.marker = { '>', '>', '>' }
 	};	
-	cdrconn->getHeader(&header, topic_id, len, buffer);
+	cdr_message->getHeader(&header);
 	try {
 		send_header(&header);
-		send_bytes(buffer, len);
+		send_bytes(cdr_message->getBuffer(), cdr_message->getLength());
 	}
 	catch (std::length_error &e) {
 		logError(PFX "%zu: DROPPED RTPS Message %d: %s",
 				conn_id,
-				topic_id,
+				cdr_message->getMsgid(),
 				e.what());
 	}
 	

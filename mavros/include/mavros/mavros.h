@@ -64,7 +64,7 @@ private:
 
 	//! fcu link -> ros
 	void mavlink_pub_cb(const mavlink::mavlink_message_t *mmsg, const mavconn::Framing framing);
-	void cdr_pub_cb(const uint8_t topic_id, const uint8_t len, const uint8_t* buffer);
+	void cdr_pub_cb(mavconn::cdr_message_t *cmsg);
 	//! ros -> fcu link
 	void mavlink_sub_cb(const mavros_msgs::Mavlink::ConstPtr &rmsg);
 	void cdr_sub_cb(const mavros_msgs::Rtps::ConstPtr &rmsg);

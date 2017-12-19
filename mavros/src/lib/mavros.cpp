@@ -25,7 +25,7 @@ using mavconn::Framing;
 using mavlink::mavlink_message_t;
 using plugin::PluginBase;
 using utils::enum_value;
-
+using mavconn::cdr_message_t;
 
 MavRos::MavRos() :
 	mavlink_nh("mavlink"),		// allow to namespace it
@@ -144,8 +144,8 @@ MavRos::MavRos() :
 			gcs_link->send_message_ignore_drop(msg);
 	};
 
-	fcu_link->get_cdr_conn()->message_received_cb = [this](const uint8_t topic_id, const uint8_t len, const uint8_t* buffer) {
-		cdr_pub_cb(topic_id, len, buffer);
+	fcu_link->get_cdr_conn()->message_received_cb = [this](mavconn::cdr_message_t *cdr_message) {
+		cdr_pub_cb(cdr_message);
 	//	plugin_route_cb(topic_id, buffer); TODO: Need to check purpose of this incase of mavlink
 	};
 	
@@ -212,7 +212,7 @@ void MavRos::mavlink_pub_cb(const mavlink_message_t *mmsg, Framing framing)
 	mavlink_pub.publish(rmsg);
 }
 
-void MavRos::cdr_pub_cb(const uint8_t topic_id, const uint8_t len,  const uint8_t* buffer)
+void MavRos::cdr_pub_cb(mavconn::cdr_message_t *cmsg)
 {
 	auto rmsg = boost::make_shared<mavros_msgs::Rtps>();
 
@@ -220,9 +220,9 @@ void MavRos::cdr_pub_cb(const uint8_t topic_id, const uint8_t len,  const uint8_
 		return;
 
 	rmsg->header.stamp = ros::Time::now();
-	rmsg->topic_id = topic_id;
-	rmsg->len = len;
-	rmsg->buffer = std::move(mavros_msgs::Rtps::_buffer_type(buffer, buffer + len));
+	rmsg->topic_id = cmsg->getMsgid();
+	rmsg->len = cmsg->getLength();
+	rmsg->buffer = std::move(mavros_msgs::Rtps::_buffer_type(cmsg->getBuffer(), cmsg->getBuffer() + cmsg->getLength()));
 	cdr_pub.publish(rmsg);
 }
 
@@ -242,7 +242,8 @@ void MavRos::cdr_sub_cb(const mavros_msgs::Rtps::ConstPtr &rmsg)
 	uint8_t len = (*rmsg).len;
 	uint8_t buffer[MAX_BUFFER_SIZE];
 	std::copy((*rmsg).buffer.begin(), (*rmsg).buffer.end(), buffer); 
-	UAS_FCU(&mav_uas)->send_rtps_message(topic_id, len, buffer);
+	mavconn::cdr_message_t cdr_message(topic_id, len, buffer);
+	UAS_FCU(&mav_uas)->send_rtps_message(&cdr_message);
 }
 
 void MavRos::plugin_route_cb(const mavlink_message_t *mmsg, const Framing framing)
