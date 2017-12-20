@@ -41,11 +41,13 @@ private:
 
 public:
 	//! generic message handler callback
-	using HandlerCb = mavconn::MAVConnInterface::ReceivedCb;
+	using MavlinkHandlerCb = mavconn::MAVConn::ReceivedCb;
+	using CdrHandlerCb = mavconn::CDRConn::ReceivedCb;
 	//! Tuple: MSG ID, MSG NAME, message type into hash_code, message handler callback
-	using HandlerInfo = std::tuple<mavlink::msgid_t, const char*, size_t, HandlerCb>;
+	using MavlinkHandlerInfo = std::tuple<mavlink::msgid_t, const char*, size_t, MavlinkHandlerCb>;
+	using CdrHandlerInfo = std::tuple<uint8_t, const char*, CdrHandlerCb>;
 	//! Subscriptions vector
-	using Subscriptions = std::vector<HandlerInfo>;
+	using Subscriptions = std::vector<boost::variant<MavlinkHandlerInfo, CdrHandlerInfo> >;
 
 	// pluginlib return boost::shared_ptr
 	using Ptr = boost::shared_ptr<PluginBase>;
@@ -85,12 +87,19 @@ protected:
 	 * @param[in] fn  pointer to member function (handler)
 	 */
 	template<class _C>
-	HandlerInfo make_handler(const mavlink::msgid_t id, void (_C::*fn)(const mavlink::mavlink_message_t *msg, const mavconn::Framing framing)) {
+	MavlinkHandlerInfo make_handler(const mavlink::msgid_t id, void (_C::*fn)(const mavlink::mavlink_message_t *msg, const mavconn::Framing framing)) {
 		auto bfn = std::bind(fn, static_cast<_C*>(this), std::placeholders::_1, std::placeholders::_2);
 		const auto type_hash_ = typeid(mavlink::mavlink_message_t).hash_code();
 
-		return HandlerInfo{ id, nullptr, type_hash_, bfn };
+		return MavlinkHandlerInfo{ id, nullptr, type_hash_, bfn };
 	}
+
+	template<class _C>
+	CdrHandlerInfo make_handler(const uint8_t topic_id, void (_C::*fn)(const mavconn::cdr_message_t *msg)) {
+		auto bfn = std::bind(fn, static_cast<_C*>(this), std::placeholders::_1, std::placeholders::_2);
+		return CdrHandlerInfo{ topic_id, nullptr, bfn };
+	}
+
 
 	/**
 	 * Make subscription to message with automatic decoding.
@@ -98,13 +107,13 @@ protected:
 	 * @param[in] fn  pointer to member function (handler)
 	 */
 	template<class _C, class _T>
-	HandlerInfo make_handler(void (_C::*fn)(const mavlink::mavlink_message_t*, _T&)) {
+	MavlinkHandlerInfo make_handler(void (_C::*fn)(const mavlink::mavlink_message_t*, _T&)) {
 		auto bfn = std::bind(fn, static_cast<_C*>(this), std::placeholders::_1, std::placeholders::_2);
 		const auto id = _T::MSG_ID;
 		const auto name = _T::NAME;
 		const auto type_hash_ = typeid(_T).hash_code();
 
-		return HandlerInfo{
+		return MavlinkHandlerInfo{
 			id, name, type_hash_,
 			[bfn](const mavlink::mavlink_message_t *msg, const mavconn::Framing framing) {
 				if (framing != mavconn::Framing::ok)

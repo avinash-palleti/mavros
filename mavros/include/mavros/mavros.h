@@ -26,6 +26,11 @@
 #include <mavros/utils.h>
 
 namespace mavros {
+
+enum PLUGIN_TYPE {
+	MAVLINK_PLUGIN,
+	CDR_PLUGIN
+};
 /**
  * @brief MAVROS node class
  *
@@ -70,7 +75,8 @@ private:
 	void cdr_sub_cb(const mavros_msgs::Rtps::ConstPtr &rmsg);
 
 	//! message router
-	void plugin_route_cb(const mavlink::mavlink_message_t *mmsg, const mavconn::Framing framing);
+	void mavlink_plugin_route_cb(const mavlink::mavlink_message_t *mmsg, const mavconn::Framing framing);
+	void cdr_plugin_route_cb(mavconn::cdr_message_t *mmsg);
 
 	//! load plugin
 	void add_plugin(std::string &pl_name, ros::V_string &blacklist, ros::V_string &whitelist);
