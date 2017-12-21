@@ -113,7 +113,7 @@ bool MAVConnInterface::isMavlink(uint8_t *buf, const size_t bufsize)
 		i++;
 	// We need at least the first three bytes to get packet len
 	if (i == bufsize - 3) {
-	return false;
+		return false;
 	}
 
 	uint16_t packet_len;
@@ -128,13 +128,10 @@ bool MAVConnInterface::isMavlink(uint8_t *buf, const size_t bufsize)
 	} else {
 		packet_len = buf[i + 1] + 8;
 	}
-
-
 	// packet is bigger than what we've read, better luck next time
 	if (i + packet_len > bufsize) {
 		return false;
 	}
-
 	return true;
 }
 
@@ -145,53 +142,18 @@ bool MAVConnInterface::isCDR(uint8_t *buf, const size_t bufsize, uint8_t* start)
 	
 	if (bufsize < sizeof(struct Header)) // starting ">>>" + topic + seq + len + crchi + crclow
 		return false;
-
 	// look for starting ">>>"
 	for (buf_start = 0; buf_start + sizeof(struct Header) <= bufsize; ++buf_start) {
 		if ('>' == buf[buf_start] && memcmp(buf + buf_start, ">>>", 3) == 0) {
 			break;
 		}
 	}
-
 	if (buf_start >= (bufsize - sizeof(struct Header))) {
 		return false;
 	}
 	*start = buf_start;
 	return true;
 }
-
-/*void MAVConnInterface::parse_buffer(const char *pfx, uint8_t *buf, const size_t bufsize, size_t bytes_received)
-{
-	mavlink::mavlink_status_t status;
-	mavlink::mavlink_message_t message;
-
-	assert(bufsize >= bytes_received);
-
-	iostat_rx_add(bytes_received);
-	for (; bytes_received > 0; bytes_received--) {
-		auto c = *buf++;
-
-		// based on mavlink_parse_char()
-		auto msg_received = static_cast<Framing>(mavlink::mavlink_frame_char_buffer(&m_buffer, &m_status, c, &message, &status));
-		if (msg_received == Framing::bad_crc || msg_received == Framing::bad_signature) {
-			mavlink::_mav_parse_error(&m_status);
-			m_status.msg_received = mavlink::MAVLINK_FRAMING_INCOMPLETE;
-			m_status.parse_state = mavlink::MAVLINK_PARSE_STATE_IDLE;
-			if (c == MAVLINK_STX) {
-				m_status.parse_state = mavlink::MAVLINK_PARSE_STATE_GOT_STX;
-				m_buffer.len = 0;
-				mavlink::mavlink_start_checksum(&m_buffer);
-			}
-		}
-
-		if (msg_received != Framing::incomplete) {
-			log_recv(pfx, message, msg_received);
-
-			if (message_received_cb)
-				message_received_cb(&message, msg_received);
-		}
-	}
-}*/
 
 void MAVConnInterface::log_recv(const char *pfx, mavlink_message_t &msg, Framing framing)
 {
@@ -265,8 +227,6 @@ void MAVConnInterface::send_rtps_message(cdr_message_t *cdr_message)
 				cdr_message->getMsgid(),
 				e.what());
 	}
-	
-
 }
 
 void MAVConnInterface::set_protocol_version(Protocol pver)

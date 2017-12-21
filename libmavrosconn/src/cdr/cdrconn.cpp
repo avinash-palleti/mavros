@@ -10,10 +10,11 @@ void CDRConn::parse_buffer(uint8_t start, uint8_t *buf, const size_t bufsize, si
 	uint8_t buffer[MAX_BUFFER_SIZE];
 
 	assert(bufsize >= bytes_received);
-	struct Header *header = (struct Header*)&buf[start];
+	struct Header *header = (struct Header *)&buf[start];
 	len = ((uint16_t)header->payload_len_h << 8) | header->payload_len_l;
-	if (start + len + sizeof(struct Header) > bufsize)
-		return ; // we don't have a complete msg yet
+	if (start + len + sizeof(struct Header) > bufsize) {
+		return ;    // we don't have a complete msg yet
+	}
 
 
 	// buffer should be big enough to hold a rtps packet
@@ -26,10 +27,12 @@ void CDRConn::parse_buffer(uint8_t start, uint8_t *buf, const size_t bufsize, si
 	cdr_message_t cdr_message(topic_id, len, buf + start + sizeof(struct Header));
 	uint16_t crc = cdr_message.crc16();
 	uint16_t read_crc = ((uint16_t)header->crc_h << 8) | header->crc_l;
-	memmove(buf + start, buf + start + sizeof(struct Header) + len, sizeof(buf) - start - sizeof(struct Header) - len);
+	memmove(buf + start, buf + start + sizeof(struct Header) + len,
+			sizeof(buf) - start - sizeof(struct Header) - len);
 	if (crc == read_crc)
-		if (message_received_cb)
+		if (message_received_cb) {
 			message_received_cb(&cdr_message);
+		}
 }
 
 CDRConn::CDRConn()

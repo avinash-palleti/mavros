@@ -25,20 +25,24 @@ enum class Framing : uint8_t {
 	bad_signature = mavlink::MAVLINK_FRAMING_BAD_SIGNATURE,
 };
 
-class MAVConn {
+class MAVConn
+{
 public:
-	using ReceivedCb = std::function<void (const mavlink::mavlink_message_t *message, const Framing framing)>;
+	using ReceivedCb =
+		std::function<void (const mavlink::mavlink_message_t *message, const Framing framing)>;
 	void parse_buffer(const char *pfx, uint8_t *buf, const size_t bufsize, size_t bytes_received);
 	MAVConn();
 	ReceivedCb message_received_cb;
 	mavlink::mavlink_status_t get_status();
-       inline mavlink::mavlink_status_t *get_status_p() {
-               return &m_status;
-       }
+	inline mavlink::mavlink_status_t *get_status_p()
+	{
+		return &m_status;
+	}
 
-       inline mavlink::mavlink_message_t *get_buffer_p() {
-               return &m_buffer;
-       }
+	inline mavlink::mavlink_message_t *get_buffer_p()
+	{
+		return &m_buffer;
+	}
 
 private:
 	mavlink::mavlink_status_t m_status;

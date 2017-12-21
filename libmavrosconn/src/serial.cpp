@@ -158,9 +158,6 @@ void MAVConnSerial::send_header(const Header *header)
 		logError(PFXd "send: channel closed!", conn_id);
 		return;
 	}
-
-	//log_send_obj(PFX, header);
-
 	{
 		lock_guard lock(mutex);
 
@@ -170,7 +167,6 @@ void MAVConnSerial::send_header(const Header *header)
 		tx_q.emplace_back(header);
 	}
 	io_service.post(std::bind(&MAVConnSerial::do_write, shared_from_this(), true));
-	
 }
 
 void MAVConnSerial::do_read(void)

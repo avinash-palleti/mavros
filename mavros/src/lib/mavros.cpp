@@ -254,8 +254,8 @@ struct output : public boost::static_visitor<void*>
 
 struct output_type : public boost::static_visitor<int>
 {
-	int operator()(PluginBase::MavlinkHandlerInfo& d) const {return PLUGIN_TYPE::MAVLINK_PLUGIN;}
-	int operator()(PluginBase::CdrHandlerInfo& d) const {return PLUGIN_TYPE::CDR_PLUGIN;}
+	int operator()(PluginBase::MavlinkHandlerInfo& d) const {return MSG_TYPE::MAVLINK_MSG;}
+	int operator()(PluginBase::CdrHandlerInfo& d) const {return MSG_TYPE::CDR_MSG;}
 };
 
 void MavRos::mavlink_plugin_route_cb(const mavlink_message_t *mmsg, const Framing framing)
@@ -349,7 +349,7 @@ void MavRos::add_plugin(std::string &pl_name, ros::V_string &blacklist, ros::V_s
 
 		for (auto &info : plugin->get_subscriptions()) {
 			int plugin_type = boost::apply_visitor(output_type(), info);
-			if (plugin_type == PLUGIN_TYPE::MAVLINK_PLUGIN)
+			if (plugin_type == MSG_TYPE::MAVLINK_MSG)
 			{
 			PluginBase::MavlinkHandlerInfo* interim; 
 			interim = (PluginBase::MavlinkHandlerInfo*) boost::apply_visitor(output(), info);
@@ -380,7 +380,7 @@ void MavRos::add_plugin(std::string &pl_name, ros::V_string &blacklist, ros::V_s
 				if (!append_allowed) {
 					append_allowed = true;
 					for (auto &e : it->second) {
-					interim = (PluginBase::MavlinkHandlerInfo*) boost::apply_visitor(output(), e);
+						interim = (PluginBase::MavlinkHandlerInfo*) boost::apply_visitor(output(), e);
 						auto t2 = std::get<2>(*interim);
 						if (!is_mavlink_message_t(t2) && t2 != type_hash_) {
 							ROS_ERROR_STREAM(log_msgname << " routed to different message type (hash: " << t2 << ")");
@@ -397,9 +397,8 @@ void MavRos::add_plugin(std::string &pl_name, ros::V_string &blacklist, ros::V_s
 					ROS_ERROR_STREAM(log_msgname << " handler dropped because this ID are used for another message type");
 			}
 		}
-		else if (plugin_type == PLUGIN_TYPE::CDR_PLUGIN)
+		else if (plugin_type == MSG_TYPE::CDR_MSG)
 		{
-			
 			PluginBase::CdrHandlerInfo* interim; 
 			interim = (PluginBase::CdrHandlerInfo*) boost::apply_visitor(output(), info);
 			auto topic_id = std::get<0>(*interim);

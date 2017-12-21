@@ -27,9 +27,9 @@
 
 namespace mavros {
 
-enum PLUGIN_TYPE {
-	MAVLINK_PLUGIN,
-	CDR_PLUGIN
+enum MSG_TYPE {
+	MAVLINK_MSG,
+	CDR_MSG
 };
 /**
  * @brief MAVROS node class

@@ -69,32 +69,36 @@ struct Header {
 
 class cdr_message_t
 {
-    public:
+public:
 	uint8_t	   msgid;
 	uint8_t    len;
 	uint8_t    buffer[MAX_BUFFER_SIZE];
 
-    public:
-	void getHeader(Header* header) {
-		int ret = 0; 
-		static uint8_t seq = 0; 
-		uint16_t crc = crc16(); 
-		header->topic_ID = msgid; 
-		header->seq = seq++; 
-		header->payload_len_h = (len >> 8) & 0xff; 
-		header->payload_len_l = len & 0xff; 
-		header->crc_h = (crc >> 8) & 0xff; 
-		header->crc_l = crc & 0xff; 
+public:
+	void getHeader(Header *header)
+	{
+		int ret = 0;
+		static uint8_t seq = 0;
+		uint16_t crc = crc16();
+		header->topic_ID = msgid;
+		header->seq = seq++;
+		header->payload_len_h = (len >> 8) & 0xff;
+		header->payload_len_l = len & 0xff;
+		header->crc_h = (crc >> 8) & 0xff;
+		header->crc_l = crc & 0xff;
 	}
-	uint16_t crc16_byte(uint16_t crc, const uint8_t data) {
+	uint16_t crc16_byte(uint16_t crc, const uint8_t data)
+	{
 		return (crc >> 8) ^ crc16_table[(crc ^ data) & 0xff];
 	}
-	uint16_t crc16() {
+	uint16_t crc16()
+	{
 		uint8_t const *buf = buffer;
-		uint16_t crc = 0; 
-		while (len--) 
-			crc = crc16_byte(crc, *buf++); 
-		return crc; 
+		uint16_t crc = 0;
+		while (len--) {
+			crc = crc16_byte(crc, *buf++);
+		}
+		return crc;
 	}
 	cdr_message_t(uint8_t id, uint8_t length, uint8_t buf[]) :
 		msgid(id),
@@ -102,18 +106,22 @@ class cdr_message_t
 	{
 		memmove(buffer, buf, length);
 	}
-	uint8_t getMsgid() const {
+	uint8_t getMsgid() const
+	{
 		return msgid;
 	}
-	uint8_t getLength() const {
+	uint8_t getLength() const
+	{
 		return len;
 	}
-	const uint8_t* getBuffer() const {
+	const uint8_t *getBuffer() const
+	{
 		return buffer;
-	} 
+	}
 };
 
-class CDRConn {
+class CDRConn
+{
 public:
 	using ReceivedCb = std::function<void (mavconn::cdr_message_t *cdr_message)>;
 	void parse_buffer(uint8_t start, uint8_t *buf, const size_t bufsize, size_t bytes_received);

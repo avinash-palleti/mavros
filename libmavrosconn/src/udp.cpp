@@ -166,17 +166,14 @@ void MAVConnUDP::send_bytes(const uint8_t *bytes, size_t length)
 
 void MAVConnUDP::send_header(const Header *header)
 {
-
 	if (!is_open()) {
 		logError(PFXd "send: channel closed!", conn_id);
 		return;
 	}
-
 	if (!remote_exists) {
 		logDebug(PFXd "send: Remote not known, message dropped.", conn_id);
 		return;
 	}
-
 	{
 		lock_guard lock(mutex);
 
@@ -186,7 +183,6 @@ void MAVConnUDP::send_header(const Header *header)
 		tx_q.emplace_back(header);
 	}
 	io_service.post(std::bind(&MAVConnUDP::do_sendto, shared_from_this(), true));
-	
 }
 
 void MAVConnUDP::send_message(const mavlink_message_t *message)

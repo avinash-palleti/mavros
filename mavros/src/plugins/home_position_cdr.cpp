@@ -28,7 +28,8 @@ namespace std_plugins {
  *
  * Publishes home position.
  */
-class HomePositionCdrPlugin : public plugin::PluginBase {
+class HomePositionCdrPlugin : public plugin::PluginBase
+{
 public:
 	HomePositionCdrPlugin() :
 		hp_nh("~home_position"),
@@ -51,8 +52,8 @@ public:
 	Subscriptions get_subscriptions()
 	{
 		return {
-				   //33 is topic_id for home_position
-			       make_handler(33, &HomePositionCdrPlugin::handle_home_position),
+			//33 is topic_id for home_position
+			make_handler(33, &HomePositionCdrPlugin::handle_home_position),
 		};
 	}
 
@@ -84,8 +85,7 @@ private:
 
 			ret = client.call(cmd);
 			ret = cmd.response.success;
-		}
-		catch (ros::InvalidNameException &ex) {
+		} catch (ros::InvalidNameException &ex) {
 			ROS_ERROR_NAMED("home_position", "HP: %s", ex.what());
 		}
 
@@ -98,13 +98,15 @@ private:
 
 		auto hp = boost::make_shared<mavros_msgs::HomePosition>();
 		home_position_ hp_cdr;
-        eprosima::fastcdr::FastBuffer cdrbuffer((char*)msg->getBuffer(), msg->getLength());
-        eprosima::fastcdr::Cdr cdr_des(cdrbuffer);
-        hp_cdr.deserialize(cdr_des);
+		eprosima::fastcdr::FastBuffer cdrbuffer((char *)msg->getBuffer(), msg->getLength());
+		eprosima::fastcdr::Cdr cdr_des(cdrbuffer);
+		hp_cdr.deserialize(cdr_des);
 
 		auto pos = ftf::transform_frame_ned_enu(Eigen::Vector3d(hp_cdr.x(), hp_cdr.y(), hp_cdr.z()));
-		auto q = ftf::transform_orientation_ned_enu(Eigen::Quaterniond(hp_cdr.yaw(), hp_cdr.x(), hp_cdr.y(), hp_cdr.z()));
-		auto hp_approach_enu = ftf::transform_frame_ned_enu(Eigen::Vector3d(hp_cdr.direction_x(), hp_cdr.direction_y(), hp_cdr.direction_z()));
+		auto q = ftf::transform_orientation_ned_enu(Eigen::Quaterniond(hp_cdr.yaw(), hp_cdr.x(), hp_cdr.y(),
+																	   hp_cdr.z()));
+		auto hp_approach_enu = ftf::transform_frame_ned_enu(Eigen::Vector3d(hp_cdr.direction_x(),
+																			hp_cdr.direction_y(), hp_cdr.direction_z()));
 
 		hp->header.stamp = ros::Time::now();
 		hp->geo.latitude = hp_cdr.lat() / 1E7;		// deg
@@ -114,7 +116,8 @@ private:
 		tf::pointEigenToMsg(pos, hp->position);
 		tf::vectorEigenToMsg(hp_approach_enu, hp->approach);
 
-		ROS_DEBUG_NAMED("home_position", "HP: Home lat %f, long %f, alt %f", hp->geo.latitude, hp->geo.longitude, hp->geo.altitude);
+		ROS_DEBUG_NAMED("home_position", "HP: Home lat %f, long %f, alt %f", hp->geo.latitude,
+						hp->geo.longitude, hp->geo.altitude);
 		hp_pub.publish(hp);
 	}
 
@@ -124,7 +127,7 @@ private:
 		Eigen::Vector3d pos, approach;
 		Eigen::Quaterniond q;
 		home_position_ hp_cdr;
-		
+
 		tf::pointMsgToEigen(req->position, pos);
 		pos = ftf::transform_frame_enu_ned(pos);
 
@@ -154,10 +157,10 @@ private:
 		hp_cdr.direction_z(approach.z());
 		// [[[end]]] (checksum: 9c40c5b3ac06b3b82016b4f07a8e12b2)
 		eprosima::fastcdr::FastBuffer cdrbuffer(data_buffer, sizeof(data_buffer));
-        eprosima::fastcdr::Cdr scdr(cdrbuffer);
+		eprosima::fastcdr::Cdr scdr(cdrbuffer);
 		hp_cdr.serialize(scdr);
-		
-		mavconn::cdr_message_t msg(33, scdr.getSerializedDataLength(), (uint8_t*)scdr.getBufferPointer());
+
+		mavconn::cdr_message_t msg(33, scdr.getSerializedDataLength(), (uint8_t *)scdr.getBufferPointer());
 		UAS_FCU(m_uas)->send_rtps_message(&msg);
 	}
 
@@ -175,10 +178,11 @@ private:
 
 	void connection_cb(bool connected) override
 	{
-		if (connected)
+		if (connected) {
 			poll_timer.start();
-		else
+		} else {
 			poll_timer.stop();
+		}
 	}
 };
 }	// namespace std_plugins

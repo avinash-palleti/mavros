@@ -1,7 +1,8 @@
 #include <mavconn/mavconn.h>
 
 namespace mavconn {
-void MAVConn::parse_buffer(const char *pfx, uint8_t *buf, const size_t bufsize, size_t bytes_received)
+void MAVConn::parse_buffer(const char *pfx, uint8_t *buf, const size_t bufsize,
+						   size_t bytes_received)
 {
 	mavlink::mavlink_status_t status;
 	mavlink::mavlink_message_t message;
@@ -12,7 +13,8 @@ void MAVConn::parse_buffer(const char *pfx, uint8_t *buf, const size_t bufsize, 
 		auto c = *buf++;
 
 		// based on mavlink_parse_char()
-		auto msg_received = static_cast<Framing>(mavlink::mavlink_frame_char_buffer(&m_buffer, &m_status, c, &message, &status));
+		auto msg_received = static_cast<Framing>(mavlink::mavlink_frame_char_buffer(&m_buffer, &m_status, c,
+																					&message, &status));
 		if (msg_received == Framing::bad_crc || msg_received == Framing::bad_signature) {
 			mavlink::_mav_parse_error(&m_status);
 			m_status.msg_received = mavlink::MAVLINK_FRAMING_INCOMPLETE;
@@ -25,8 +27,9 @@ void MAVConn::parse_buffer(const char *pfx, uint8_t *buf, const size_t bufsize, 
 		}
 
 		if (msg_received != Framing::incomplete) {
-			if (message_received_cb)
+			if (message_received_cb) {
 				message_received_cb(&message, msg_received);
+			}
 		}
 	}
 }
