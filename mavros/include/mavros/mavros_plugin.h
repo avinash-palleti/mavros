@@ -23,6 +23,7 @@
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <mavconn/interface.h>
 #include <mavros/mavros_uas.h>
+#include <mavros/home_position_.h>
 
 namespace mavros {
 namespace plugin {
@@ -96,7 +97,7 @@ protected:
 
 	template<class _C>
 	CdrHandlerInfo make_handler(const uint8_t topic_id, void (_C::*fn)(const mavconn::cdr_message_t *msg)) {
-		auto bfn = std::bind(fn, static_cast<_C*>(this), std::placeholders::_1, std::placeholders::_2);
+		auto bfn = std::bind(fn, static_cast<_C*>(this), std::placeholders::_1);
 		return CdrHandlerInfo{ topic_id, nullptr, bfn };
 	}
 

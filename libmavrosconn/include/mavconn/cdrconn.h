@@ -102,13 +102,13 @@ class cdr_message_t
 	{
 		memmove(buffer, buf, length);
 	}
-	uint8_t getMsgid() {
+	uint8_t getMsgid() const {
 		return msgid;
 	}
-	uint8_t getLength() {
+	uint8_t getLength() const {
 		return len;
 	}
-	uint8_t* getBuffer() {
+	const uint8_t* getBuffer() const {
 		return buffer;
 	} 
 };
