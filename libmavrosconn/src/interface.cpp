@@ -211,6 +211,30 @@ void MAVConnInterface::send_message_ignore_drop(const mavlink::Message &msg)
 	}
 }
 
+template <class _C>
+void MAVConnInterface::send_rtps_message(uint8_t topic_id, _C *msg)
+{
+	char data_buffer[1024] = {};
+	eprosima::fastcdr::FastBuffer cdrbuffer(data_buffer, sizeof(data_buffer));
+	eprosima::fastcdr::Cdr scdr(cdrbuffer);
+	msg->serialize(scdr);
+	mavconn::cdr_message_t cdr_message(topic_id, scdr.getSerializedDataLength(), (uint8_t*)scdr.getBufferPointer());
+	static struct Header header {
+		.marker = { '>', '>', '>' }
+	};	
+	cdr_message.getHeader(&header);
+	try {
+		send_header(&header);
+		send_bytes(cdr_message.getBuffer(), cdr_message.getLength());
+	}
+	catch (std::length_error &e) {
+		logError(PFX "%zu: DROPPED RTPS Message %d: %s",
+				conn_id,
+				cdr_message.getMsgid(),
+				e.what());
+	}
+}
+
 void MAVConnInterface::send_rtps_message(cdr_message_t *cdr_message)
 {
 	static struct Header header {

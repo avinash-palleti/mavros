@@ -23,7 +23,7 @@
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <mavconn/interface.h>
 #include <mavros/mavros_uas.h>
-#include <mavros/home_position_.h>
+#include <mavconn/home_position_.h>
 
 namespace mavros {
 namespace plugin {
@@ -96,7 +96,7 @@ protected:
 	}
 
 	template<class _C>
-	CdrHandlerInfo make_handler(const uint8_t topic_id, void (_C::*fn)(const mavconn::cdr_message_t *msg)) {
+	CdrHandlerInfo make_handler( const uint8_t topic_id, void (_C::*fn)(const mavconn::cdr_message_t *msg)) {
 		auto bfn = std::bind(fn, static_cast<_C*>(this), std::placeholders::_1);
 		return CdrHandlerInfo{ topic_id, nullptr, bfn };
 	}
@@ -124,6 +124,21 @@ protected:
 				_T obj;
 				obj.deserialize(map);
 
+				bfn(msg, obj);
+			}
+		};
+	}
+
+	template<class _C, class _T>
+	CdrHandlerInfo make_handler(const uint8_t topic_id, void (_C::*fn)(const mavconn::cdr_message_t *msg, _T&)) {
+		auto bfn = std::bind(fn, static_cast<_C*>(this), std::placeholders::_1, std::placeholders::_2);
+		return CdrHandlerInfo{topic_id, nullptr, 
+			[bfn](const mavconn::cdr_message_t *msg) {
+				_T obj;
+				eprosima::fastcdr::FastBuffer cdrbuffer((char *)msg->getBuffer(), msg->getLength());
+				eprosima::fastcdr::Cdr cdr_des(cdrbuffer);
+				obj.deserialize(cdr_des);
+				
 				bfn(msg, obj);
 			}
 		};

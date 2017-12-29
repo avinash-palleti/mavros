@@ -92,15 +92,11 @@ private:
 		return ret;
 	}
 
-	void handle_home_position(const mavconn::cdr_message_t *msg)
+	void handle_home_position(const mavconn::cdr_message_t *msg, home_position_ &hp_cdr)
 	{
 		poll_timer.stop();
 
 		auto hp = boost::make_shared<mavros_msgs::HomePosition>();
-		home_position_ hp_cdr;
-		eprosima::fastcdr::FastBuffer cdrbuffer((char *)msg->getBuffer(), msg->getLength());
-		eprosima::fastcdr::Cdr cdr_des(cdrbuffer);
-		hp_cdr.deserialize(cdr_des);
 
 		auto pos = ftf::transform_frame_ned_enu(Eigen::Vector3d(hp_cdr.x(), hp_cdr.y(), hp_cdr.z()));
 		auto q = ftf::transform_orientation_ned_enu(Eigen::Quaterniond(hp_cdr.yaw(), hp_cdr.x(), hp_cdr.y(),
@@ -123,7 +119,6 @@ private:
 
 	void home_position_cb(const mavros_msgs::HomePosition::ConstPtr &req)
 	{
-		char data_buffer[1024] = {};
 		Eigen::Vector3d pos, approach;
 		Eigen::Quaterniond q;
 		home_position_ hp_cdr;
@@ -156,12 +151,8 @@ private:
 		hp_cdr.direction_y(approach.y());
 		hp_cdr.direction_z(approach.z());
 		// [[[end]]] (checksum: 9c40c5b3ac06b3b82016b4f07a8e12b2)
-		eprosima::fastcdr::FastBuffer cdrbuffer(data_buffer, sizeof(data_buffer));
-		eprosima::fastcdr::Cdr scdr(cdrbuffer);
-		hp_cdr.serialize(scdr);
 
-		mavconn::cdr_message_t msg(33, scdr.getSerializedDataLength(), (uint8_t *)scdr.getBufferPointer());
-		UAS_FCU(m_uas)->send_rtps_message(&msg);
+		UAS_FCU(m_uas)->send_rtps_message(33, &hp_cdr);
 	}
 
 	bool req_update_cb(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res)

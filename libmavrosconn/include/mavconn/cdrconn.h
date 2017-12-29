@@ -13,6 +13,8 @@
 #include <stdexcept>
 #include <unordered_map>
 #include <mavconn/mavlink_dialect.h>
+#include <fastcdr/Cdr.h>
+#include <mavconn/home_position_.h>
 
 #pragma once
 
