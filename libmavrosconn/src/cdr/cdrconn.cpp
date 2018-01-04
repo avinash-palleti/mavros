@@ -38,9 +38,7 @@ void CDRConn::parse_buffer(uint8_t start, uint8_t *buf, const size_t bufsize, si
 CDRConn::CDRConn()
 {
 // Default constructor
-// Initialize map between class names and topic_id
-uorbMap.insert(std::make_pair(typeid(home_position_).name(), 33));
-
+uorbmap::initialize_uorb_map();
 }
 
 }

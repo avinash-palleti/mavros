@@ -49,10 +49,13 @@ add_library(mavconn
   src/tcp.cpp
   src/mavlink/mavconn.cpp
   src/cdr/cdrconn.cpp
+  src/cdr/home_position_.cpp
 )
 target_link_libraries(mavconn
   ${Boost_LIBRARIES}
   ${console_bridge_LIBRARIES}
+  fastrtps
+  fastcdr
 )
 
 # Use catkin-supplied em_expand macros to generate source files

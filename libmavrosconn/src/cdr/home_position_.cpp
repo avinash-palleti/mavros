@@ -24,7 +24,7 @@
 namespace { char dummy; }
 #endif
 
-#include "mavros/home_position_.h"
+#include "mavconn/home_position_.h"
 
 #include <fastcdr/Cdr.h>
 

@@ -15,7 +15,7 @@
 #include <unordered_map>
 #include <mavconn/mavlink_dialect.h>
 #include <fastcdr/Cdr.h>
-#include <mavconn/home_position_.h>
+#include <mavconn/uorb_cdr_map.h>
 
 #pragma once
 
@@ -130,6 +130,5 @@ public:
 	void parse_buffer(uint8_t start, uint8_t *buf, const size_t bufsize, size_t bytes_received);
 	CDRConn();
 	ReceivedCb message_received_cb;
-	std::map<std::string, int> uorbMap;
 };
 }

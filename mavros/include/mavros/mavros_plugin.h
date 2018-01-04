@@ -23,7 +23,7 @@
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <mavconn/interface.h>
 #include <mavros/mavros_uas.h>
-#include <mavconn/home_position_.h>
+#include <mavconn/uorb_cdr_map.h>
 
 namespace mavros {
 namespace plugin {
@@ -131,7 +131,7 @@ protected:
 
 	template<class _C, class _T>
 	CdrHandlerInfo make_handler(void (_C::*fn)(const mavconn::cdr_message_t *msg, _T&)) {
-		int topic_id = UAS_FCU(m_uas)->get_cdr_conn()->uorbMap[typeid(_T).name()];
+		int topic_id = uorbmap::uorbMap[typeid(_T).name()];
 		auto bfn = std::bind(fn, static_cast<_C*>(this), std::placeholders::_1, std::placeholders::_2);
 		return CdrHandlerInfo{topic_id, nullptr, 
 			[bfn](const mavconn::cdr_message_t *msg) {
