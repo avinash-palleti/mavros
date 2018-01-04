@@ -42,6 +42,12 @@ cmd:
 # ftp
 # None
 
+# plugin_msg_type
+# 0 for Mavlink
+# 1 for RTPS
+plugin_msg_type:
+  home_position_type: 1
+
 # global_position
 global_position:
   frame_id: "map"           # pose and fix frame_id
