@@ -187,7 +187,7 @@ private:
 			hp_cdr.direction_x(approach.x());
 			hp_cdr.direction_y(approach.y());
 			hp_cdr.direction_z(approach.z());
-			UAS_FCU(m_uas)->send_message("Home_Position", &hp_cdr);
+			UAS_FCU(m_uas)->send_message(hp_cdr);
 		}
 	}
 

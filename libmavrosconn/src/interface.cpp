@@ -217,7 +217,7 @@ void MAVConnInterface::send_message(cdr_message_t *cdr_message)
 }
 
 template <class _C>
-void MAVConnInterface::send_message(const char* name, _C *msg)
+void MAVConnInterface::send_message(_C &msg)
 {
 	int topic_id = get_cdr_conn()->uorbMap[typeid(_C).name()];
 	char data_buffer[1024] = {};
