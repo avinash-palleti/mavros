@@ -142,6 +142,8 @@ add_dependencies(mavros_plugins
 target_link_libraries(mavros_plugins
   mavros
   ${catkin_LIBRARIES}
+  fastrtps
+  fastcdr
 )
 
 ## Declare a cpp executable
