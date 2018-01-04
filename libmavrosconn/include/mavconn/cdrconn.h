@@ -4,6 +4,7 @@
 #include <deque>
 #include <mutex>
 #include <vector>
+#include <map>
 #include <atomic>
 #include <chrono>
 #include <thread>
@@ -129,5 +130,6 @@ public:
 	void parse_buffer(uint8_t start, uint8_t *buf, const size_t bufsize, size_t bytes_received);
 	CDRConn();
 	ReceivedCb message_received_cb;
+	std::map<std::string, int> uorbMap;
 };
 }

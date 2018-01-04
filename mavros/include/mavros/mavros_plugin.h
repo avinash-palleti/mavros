@@ -96,7 +96,7 @@ protected:
 	}
 
 	template<class _C>
-	CdrHandlerInfo make_handler( const uint8_t topic_id, void (_C::*fn)(const mavconn::cdr_message_t *msg)) {
+	CdrHandlerInfo make_handler(const uint8_t topic_id, void (_C::*fn)(const mavconn::cdr_message_t *msg)) {
 		auto bfn = std::bind(fn, static_cast<_C*>(this), std::placeholders::_1);
 		return CdrHandlerInfo{ topic_id, nullptr, bfn };
 	}
@@ -130,7 +130,8 @@ protected:
 	}
 
 	template<class _C, class _T>
-	CdrHandlerInfo make_handler(const uint8_t topic_id, void (_C::*fn)(const mavconn::cdr_message_t *msg, _T&)) {
+	CdrHandlerInfo make_handler(void (_C::*fn)(const mavconn::cdr_message_t *msg, _T&)) {
+		int topic_id = UAS_FCU(m_uas)->get_cdr_conn()->uorbMap[typeid(_T).name()];
 		auto bfn = std::bind(fn, static_cast<_C*>(this), std::placeholders::_1, std::placeholders::_2);
 		return CdrHandlerInfo{topic_id, nullptr, 
 			[bfn](const mavconn::cdr_message_t *msg) {

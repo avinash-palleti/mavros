@@ -156,7 +156,8 @@ public:
 	void send_message_ignore_drop(const mavlink::Message &message);
 	void send_rtps_message(cdr_message_t *cdr_message);
 	template<class _C>
-	void send_rtps_message(uint8_t topic_id, _C*);
+	void send_message(const char*, _C*);
+	void send_message(cdr_message_t *cdr_message);
 	virtual void send_header(const Header *header) = 0;
 
 	//! Message receive callback

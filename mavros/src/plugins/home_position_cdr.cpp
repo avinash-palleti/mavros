@@ -53,7 +53,7 @@ public:
 	{
 		return {
 			//33 is topic_id for home_position
-			make_handler(33, &HomePositionCdrPlugin::handle_home_position),
+			make_handler(&HomePositionCdrPlugin::handle_home_position),
 		};
 	}
 
@@ -152,7 +152,7 @@ private:
 		hp_cdr.direction_z(approach.z());
 		// [[[end]]] (checksum: 9c40c5b3ac06b3b82016b4f07a8e12b2)
 
-		UAS_FCU(m_uas)->send_rtps_message(33, &hp_cdr);
+		UAS_FCU(m_uas)->send_message("Home_Position", &hp_cdr);
 	}
 
 	bool req_update_cb(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res)
