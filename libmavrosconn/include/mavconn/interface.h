@@ -237,7 +237,9 @@ protected:
 	void iostat_rx_add(size_t bytes);
 
 	void log_recv(const char *pfx, mavlink::mavlink_message_t &msg, Framing framing);
+	void log_recv(const char *pfx, cdr_message_t &msg);
 	void log_send(const char *pfx, const mavlink::mavlink_message_t *msg);
+	void log_send(const char *pfx, cdr_message_t *msg);
 	void log_send_obj(const char *pfx, const mavlink::Message &msg);
 
 private:

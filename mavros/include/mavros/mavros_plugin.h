@@ -32,6 +32,11 @@ using mavros::UAS;
 typedef std::lock_guard<std::recursive_mutex> lock_guard;
 typedef std::unique_lock<std::recursive_mutex> unique_lock;
 
+enum MSG_TYPE {
+    MAVLINK_MSG,
+    CDR_MSG
+};
+
 /**
  * @brief MAVROS Plugin base class
  */

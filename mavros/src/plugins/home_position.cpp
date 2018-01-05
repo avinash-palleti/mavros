@@ -53,14 +53,18 @@ public:
 	{
 		int msg_type;
 		hp_nh.getParam("plugin_msg_type/home_position_type", msg_type);
-		if(msg_type == 0)
-			return {
-				       make_handler(&HomePositionPlugin::handle_mavlink_home_position),
+		switch(msg_type) {
+			case plugin::MSG_TYPE::MAVLINK_MSG:
+				return {
+							make_handler(&HomePositionPlugin::handle_mavlink_home_position),
 			};
-		else if(msg_type == 1)
-			return {
-				       make_handler(&HomePositionPlugin::handle_cdr_home_position),
-			};
+			case plugin::MSG_TYPE::CDR_MSG:
+				return {
+							make_handler(&HomePositionPlugin::handle_cdr_home_position),
+				};
+			default:
+				ROS_ERROR_STREAM("Unknown Message Type. Cannot Subscribe");
+		}
 	}
 
 private:
@@ -101,45 +105,52 @@ private:
 
 	void handle_mavlink_home_position(const mavlink::mavlink_message_t *msg, mavlink::common::msg::HOME_POSITION &home_position)
 	{
-		auto hp = boost::make_shared<mavros_msgs::HomePosition>();
-		poll_timer.stop();
-		auto pos = ftf::transform_frame_ned_enu(Eigen::Vector3d(home_position.x, home_position.y, home_position.z));
-		auto q = ftf::transform_orientation_ned_enu(ftf::mavlink_to_quaternion(home_position.q));
-		auto hp_approach_enu = ftf::transform_frame_ned_enu(Eigen::Vector3d(home_position.approach_x, home_position.approach_y, home_position.approach_z));
+		int msg_type;
+		hp_nh.getParam("plugin_msg_type/home_position_type", msg_type);
+		if(msg_type == plugin::MSG_TYPE::MAVLINK_MSG) {
+			auto hp = boost::make_shared<mavros_msgs::HomePosition>();
+			poll_timer.stop();
+			auto pos = ftf::transform_frame_ned_enu(Eigen::Vector3d(home_position.x, home_position.y, home_position.z));
+			auto q = ftf::transform_orientation_ned_enu(ftf::mavlink_to_quaternion(home_position.q));
+			auto hp_approach_enu = ftf::transform_frame_ned_enu(Eigen::Vector3d(home_position.approach_x, home_position.approach_y, home_position.approach_z));
 
-		hp->header.stamp = ros::Time::now();
-		hp->geo.latitude = home_position.latitude / 1E7;		// deg
-		hp->geo.longitude = home_position.longitude / 1E7;		// deg
-		hp->geo.altitude = home_position.altitude / 1E3 + m_uas->geoid_to_ellipsoid_height(&hp->geo);	// in meters
-		tf::quaternionEigenToMsg(q, hp->orientation);
-		tf::pointEigenToMsg(pos, hp->position);
-		tf::vectorEigenToMsg(hp_approach_enu, hp->approach);
-		ROS_DEBUG_NAMED("home_position", "HP: Home lat %f, long %f, alt %f", hp->geo.latitude, hp->geo.longitude, hp->geo.altitude);
-		hp_pub.publish(hp);
+			hp->header.stamp = ros::Time::now();
+			hp->geo.latitude = home_position.latitude / 1E7;		// deg
+			hp->geo.longitude = home_position.longitude / 1E7;		// deg
+			hp->geo.altitude = home_position.altitude / 1E3 + m_uas->geoid_to_ellipsoid_height(&hp->geo);	// in meters
+			tf::quaternionEigenToMsg(q, hp->orientation);
+			tf::pointEigenToMsg(pos, hp->position);
+			tf::vectorEigenToMsg(hp_approach_enu, hp->approach);
+			ROS_DEBUG_NAMED("home_position", "HP: Home lat %f, long %f, alt %f", hp->geo.latitude, hp->geo.longitude, hp->geo.altitude);
+			hp_pub.publish(hp);
+		}
 	}
 
 	void handle_cdr_home_position(const mavconn::cdr_message_t *msg, home_position_ &home_position)
 	{
+		int msg_type;
+		hp_nh.getParam("plugin_msg_type/home_position_type", msg_type);
+		if(msg_type == plugin::MSG_TYPE::CDR_MSG) {
+			auto hp = boost::make_shared<mavros_msgs::HomePosition>();
+			poll_timer.stop();
 
-		auto hp = boost::make_shared<mavros_msgs::HomePosition>();
-		poll_timer.stop();
+			auto pos = ftf::transform_frame_ned_enu(Eigen::Vector3d(home_position.x(), home_position.y(), home_position.z()));
+			auto q = ftf::transform_orientation_ned_enu(Eigen::Quaterniond(home_position.yaw(), home_position.x(), home_position.y(),
+														home_position.z()));
+			auto hp_approach_enu = ftf::transform_frame_ned_enu(Eigen::Vector3d(home_position.direction_x(),
+																home_position.direction_y(), home_position.direction_z()));
+			hp->header.stamp = ros::Time::now();
+			hp->geo.latitude = home_position.lat() / 1E7;		// deg
+			hp->geo.longitude = home_position.lon() / 1E7;		// deg
+			hp->geo.altitude = home_position.alt() / 1E3 + m_uas->geoid_to_ellipsoid_height(&hp->geo);	// in meters
+			tf::quaternionEigenToMsg(q, hp->orientation);
+			tf::pointEigenToMsg(pos, hp->position);
+			tf::vectorEigenToMsg(hp_approach_enu, hp->approach);
 
-		auto pos = ftf::transform_frame_ned_enu(Eigen::Vector3d(home_position.x(), home_position.y(), home_position.z()));
-		auto q = ftf::transform_orientation_ned_enu(Eigen::Quaterniond(home_position.yaw(), home_position.x(), home_position.y(),
-																   home_position.z()));
-		auto hp_approach_enu = ftf::transform_frame_ned_enu(Eigen::Vector3d(home_position.direction_x(),
-																			home_position.direction_y(), home_position.direction_z()));
-		hp->header.stamp = ros::Time::now();
-		hp->geo.latitude = home_position.lat() / 1E7;		// deg
-		hp->geo.longitude = home_position.lon() / 1E7;		// deg
-		hp->geo.altitude = home_position.alt() / 1E3 + m_uas->geoid_to_ellipsoid_height(&hp->geo);	// in meters
-		tf::quaternionEigenToMsg(q, hp->orientation);
-		tf::pointEigenToMsg(pos, hp->position);
-		tf::vectorEigenToMsg(hp_approach_enu, hp->approach);
+			ROS_DEBUG_NAMED("home_position", "HP: Home lat %f, long %f, alt %f", hp->geo.latitude, hp->geo.longitude, hp->geo.altitude);
 
-		ROS_DEBUG_NAMED("home_position", "HP: Home lat %f, long %f, alt %f", hp->geo.latitude, hp->geo.longitude, hp->geo.altitude);
-
-		hp_pub.publish(hp);
+			hp_pub.publish(hp);
+		}
 	}
 
 	void home_position_cb(const mavros_msgs::HomePosition::ConstPtr &req)
@@ -156,38 +167,40 @@ private:
 		tf::vectorMsgToEigen(req->approach, approach);
 		approach = ftf::transform_frame_enu_ned(approach);
 		hp_nh.getParam("plugin_msg_type/home_position_type", msg_type);
-		if(msg_type == 0)
-		{
-			mavlink::common::msg::SET_HOME_POSITION hp {};
-			hp.target_system = m_uas->get_tgt_system();
-			ftf::quaternion_to_mavlink(q, hp.q);
+		switch(msg_type) {
+			case plugin::MSG_TYPE::MAVLINK_MSG:	{
+				mavlink::common::msg::SET_HOME_POSITION hp {};
+				hp.target_system = m_uas->get_tgt_system();
+				ftf::quaternion_to_mavlink(q, hp.q);
 
-			hp.altitude = req->geo.altitude * 1e3 + m_uas->ellipsoid_to_geoid_height(&req->geo);
-			hp.latitude = req->geo.latitude * 1e7;
-			hp.longitude = req->geo.longitude * 1e7;
-			hp.x = pos.x();
-			hp.y = pos.y();
-			hp.z = pos.z();
-			hp.approach_x = approach.x();
-			hp.approach_y = approach.y();
-			hp.approach_z = approach.z();
-			UAS_FCU(m_uas)->send_message_ignore_drop(hp);
-		}
-		else if(msg_type == 1)
-		{
-			home_position_ hp_cdr;
-			hp_cdr.yaw(q.w());
-
-			hp_cdr.alt(req->geo.altitude * 1e3 + m_uas->ellipsoid_to_geoid_height(&req->geo));
-			hp_cdr.lat(req->geo.latitude * 1e7);
-			hp_cdr.lon(req->geo.longitude * 1e7);
-			hp_cdr.x(pos.x());
-			hp_cdr.y(pos.y());
-			hp_cdr.z(pos.z());
-			hp_cdr.direction_x(approach.x());
-			hp_cdr.direction_y(approach.y());
-			hp_cdr.direction_z(approach.z());
-			UAS_FCU(m_uas)->send_message(hp_cdr);
+				hp.altitude = req->geo.altitude * 1e3 + m_uas->ellipsoid_to_geoid_height(&req->geo);
+				hp.latitude = req->geo.latitude * 1e7;
+				hp.longitude = req->geo.longitude * 1e7;
+				hp.x = pos.x();
+				hp.y = pos.y();
+				hp.z = pos.z();
+				hp.approach_x = approach.x();
+				hp.approach_y = approach.y();
+				hp.approach_z = approach.z();
+				UAS_FCU(m_uas)->send_message_ignore_drop(hp);
+			}
+			case plugin::MSG_TYPE::CDR_MSG: {
+				home_position_ hp_cdr;
+				hp_cdr.yaw(q.w());
+	
+				hp_cdr.alt(req->geo.altitude * 1e3 + m_uas->ellipsoid_to_geoid_height(&req->geo));
+				hp_cdr.lat(req->geo.latitude * 1e7);
+				hp_cdr.lon(req->geo.longitude * 1e7);
+				hp_cdr.x(pos.x());
+				hp_cdr.y(pos.y());
+				hp_cdr.z(pos.z());
+				hp_cdr.direction_x(approach.x());
+				hp_cdr.direction_y(approach.y());
+				hp_cdr.direction_z(approach.z());
+				UAS_FCU(m_uas)->send_message(hp_cdr);
+			}
+			default:
+				ROS_ERROR_STREAM("Unknown Message Type.");
 		}
 	}
 

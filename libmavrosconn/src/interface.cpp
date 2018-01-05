@@ -170,6 +170,11 @@ void MAVConnInterface::log_recv(const char *pfx, mavlink_message_t &msg, Framing
 			msg.msgid, msg.len, msg.sysid, msg.compid, msg.seq);
 }
 
+void MAVConnInterface::log_recv(const char *pfx, cdr_message_t &msg)
+{
+	logDebug("%s: recv: Topic ID: %u Bytes received: %u", pfx, msg.msgid, msg.len);
+}
+
 void MAVConnInterface::log_send(const char *pfx, const mavlink_message_t *msg)
 {
 	const char *proto_version_str = (msg->magic == MAVLINK_STX) ? "v2.0" : "v1.0";
@@ -178,6 +183,11 @@ void MAVConnInterface::log_send(const char *pfx, const mavlink_message_t *msg)
 			pfx, conn_id,
 			proto_version_str,
 			msg->msgid, msg->len, msg->sysid, msg->compid, msg->seq);
+}
+
+void MAVConnInterface::log_send(const char *pfx, cdr_message_t *msg)
+{
+	logDebug("%s: send: Topic ID: %u Send Bytes: %u", pfx, msg->msgid, msg->len);
 }
 
 void MAVConnInterface::log_send_obj(const char *pfx, const mavlink::Message &msg)

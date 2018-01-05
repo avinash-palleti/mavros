@@ -9,6 +9,8 @@ find_package(catkin REQUIRED)
 ## System dependencies are found with CMake's conventions
 find_package(console_bridge REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
+find_package(fastrtps REQUIRED)
+find_package(fastcdr REQUIRED)
 
 # add package modules path, not needed in dependend packages
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules")
