@@ -273,7 +273,11 @@ void MavRos::mavlink_plugin_route_cb(const mavlink_message_t *mmsg, const Framin
 
 void MavRos::cdr_plugin_route_cb(mavconn::cdr_message_t *cmsg)
 {
-	auto it = plugin_subscriptions.find(cmsg->getMsgid());
+	auto it_msgid = cdrMsgMap.find(cmsg->getMsgid()); //get Actual message
+	if(it_msgid == cdrMsgMap.end())
+		return;
+	int msgId = it_msgid->second;
+	auto it = plugin_subscriptions.find(msgId);
 	if (it == plugin_subscriptions.end())
 		return;
 	for (auto &info : it->second) {

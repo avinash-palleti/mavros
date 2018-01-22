@@ -1,6 +1,7 @@
 #include <mavconn/cdrconn.h>
 
 std::map<std::string, int> uorbMap;
+std::map<int, int> cdrMsgMap;
 
 namespace mavconn {
 
@@ -9,7 +10,6 @@ void CDRConn::parse_buffer(uint8_t start, uint8_t *buf, const size_t bufsize, si
 	uint8_t topic_id;
 	uint16_t len;
 	uint8_t buffer[MAX_BUFFER_SIZE];
-
 	assert(bufsize >= bytes_received);
 	struct Header *header = (struct Header *)&buf[start];
 	len = ((uint16_t)header->payload_len_h << 8) | header->payload_len_l;
@@ -28,18 +28,19 @@ void CDRConn::parse_buffer(uint8_t start, uint8_t *buf, const size_t bufsize, si
 	cdr_message_t cdr_message(topic_id, len, buf + start + sizeof(struct Header));
 	uint16_t crc = cdr_message.crc16();
 	uint16_t read_crc = ((uint16_t)header->crc_h << 8) | header->crc_l;
-	memmove(buf + start, buf + start + sizeof(struct Header) + len,
-			sizeof(buf) - start - sizeof(struct Header) - len);
-	if (crc == read_crc)
+//	if (crc == read_crc) //TODO: Check why CRC mismatch is there
+//	{
 		if (message_received_cb) {
 			message_received_cb(&cdr_message);
 		}
+//	}
 }
 
 CDRConn::CDRConn()
 {
 // Default constructor
-uorbMap.insert(std::make_pair(typeid(home_position_).name(), 33));
+uorbMap.insert(std::make_pair(typeid(home_position_).name(), 162));
+cdrMsgMap[162] = 33;
 }
 
 }

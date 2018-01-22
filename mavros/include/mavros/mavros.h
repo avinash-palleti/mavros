@@ -24,6 +24,7 @@
 #include <mavros/mavros_plugin.h>
 #include <mavros/mavlink_diag.h>
 #include <mavros/utils.h>
+#include <mavconn/uorb_cdr_map.h>
 
 namespace mavros {
 
