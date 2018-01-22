@@ -137,9 +137,8 @@ bool MAVConnInterface::isMavlink(uint8_t *buf, const size_t bufsize)
 
 bool MAVConnInterface::isCDR(uint8_t *buf, const size_t bufsize, uint8_t* start)
 {
-	uint8_t buf_start = 0;
+	uint16_t buf_start = 0;
 	uint16_t len;
-	
 	if (bufsize < sizeof(struct Header)) // starting ">>>" + topic + seq + len + crchi + crclow
 		return false;
 	// look for starting ">>>"
@@ -147,6 +146,7 @@ bool MAVConnInterface::isCDR(uint8_t *buf, const size_t bufsize, uint8_t* start)
 		if ('>' == buf[buf_start] && memcmp(buf + buf_start, ">>>", 3) == 0) {
 			break;
 		}
+
 	}
 	if (buf_start >= (bufsize - sizeof(struct Header))) {
 		return false;
@@ -229,7 +229,7 @@ void MAVConnInterface::send_message(cdr_message_t *cdr_message)
 template <class _C>
 void MAVConnInterface::send_message(_C &msg)
 {
-	int topic_id = uorbmap::uorbMap[typeid(_C).name()];
+	int topic_id = uorbMap[typeid(_C).name()];
 	char data_buffer[1024] = {};
 	eprosima::fastcdr::FastBuffer cdrbuffer(data_buffer, sizeof(data_buffer));
 	eprosima::fastcdr::Cdr scdr(cdrbuffer);

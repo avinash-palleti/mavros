@@ -1,7 +1,8 @@
 #include <mavconn/cdrconn.h>
 
-namespace mavconn {
+std::map<std::string, int> uorbMap;
 
+namespace mavconn {
 
 void CDRConn::parse_buffer(uint8_t start, uint8_t *buf, const size_t bufsize, size_t bytes_received)
 {
@@ -38,7 +39,7 @@ void CDRConn::parse_buffer(uint8_t start, uint8_t *buf, const size_t bufsize, si
 CDRConn::CDRConn()
 {
 // Default constructor
-uorbmap::initialize_uorb_map();
+uorbMap.insert(std::make_pair(typeid(home_position_).name(), 33));
 }
 
 }

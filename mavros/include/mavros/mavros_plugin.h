@@ -20,6 +20,7 @@
 #include <tuple>
 #include <vector>
 #include <functional>
+#include <unistd.h>
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <mavconn/interface.h>
 #include <mavros/mavros_uas.h>
@@ -136,7 +137,7 @@ protected:
 
 	template<class _C, class _T>
 	CdrHandlerInfo make_handler(void (_C::*fn)(const mavconn::cdr_message_t *msg, _T&)) {
-		int topic_id = uorbmap::uorbMap[typeid(_T).name()];
+		int topic_id = uorbMap[typeid(_T).name()];
 		auto bfn = std::bind(fn, static_cast<_C*>(this), std::placeholders::_1, std::placeholders::_2);
 		return CdrHandlerInfo{topic_id, nullptr, 
 			[bfn](const mavconn::cdr_message_t *msg) {
@@ -144,7 +145,6 @@ protected:
 				eprosima::fastcdr::FastBuffer cdrbuffer((char *)msg->getBuffer(), msg->getLength());
 				eprosima::fastcdr::Cdr cdr_des(cdrbuffer);
 				obj.deserialize(cdr_des);
-				
 				bfn(msg, obj);
 			}
 		};
