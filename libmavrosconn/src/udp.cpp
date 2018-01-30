@@ -251,15 +251,25 @@ void MAVConnUDP::do_recvfrom()
 				}
 
 				if (sthis->remote_ep != sthis->last_remote_ep) {
-					logInform(PFXd "Remote address: %s", sthis->conn_id, to_string_ss(sthis->remote_ep).c_str());
 					sthis->remote_exists = true;
 					sthis->last_remote_ep = sthis->remote_ep;
 				}
-				uint8_t start;
-				if(sthis->isMavlink(sthis->rx_buf.data(), sthis->rx_buf.size()))
-					sthis->get_mavlink_conn()->parse_buffer(PFX, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
-				else if(sthis->isCDR(sthis->rx_buf.data(), sthis->rx_buf.size(), &start))
+				uint8_t start = 0;
+				if(sthis->get_cdr_conn()->get_cdr_frame_status() == CDRConn::CDR_FRAME_STATUS::CDR_FRAME_IDLE)
+				{
+					if(sthis->isCDR(sthis->rx_buf.data(), sthis->rx_buf.size(), &start))
+					{
+						sthis->get_cdr_conn()->parse_buffer(start, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
+					}
+					else if(sthis->isMavlink(sthis->rx_buf.data(), sthis->rx_buf.size()))
+					{
+						sthis->get_mavlink_conn()->parse_buffer(PFX, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
+					}
+				}
+				else if(sthis->get_cdr_conn()->get_cdr_frame_status() == CDRConn::CDR_FRAME_STATUS::CDR_FRAME_INCOMPLETE)
+				{
 					sthis->get_cdr_conn()->parse_buffer(start, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
+				}
 				sthis->do_recvfrom();
 			});
 }

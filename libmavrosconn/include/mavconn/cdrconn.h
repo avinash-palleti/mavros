@@ -130,5 +130,17 @@ public:
 	void parse_buffer(uint8_t start, uint8_t *buf, const size_t bufsize, size_t bytes_received);
 	CDRConn();
 	ReceivedCb message_received_cb;
+	void cdr_frame_buffer(uint8_t *buf, const size_t bytes_received, uint8_t start);
+
+	enum class CDR_FRAME_STATUS {
+		CDR_FRAME_IDLE = 1,
+		CDR_FRAME_INCOMPLETE,
+	};
+	uint8_t rxmsg[MAX_BUFFER_SIZE];
+	uint8_t buf_len = 0;
+	CDR_FRAME_STATUS m_status=CDR_FRAME_STATUS::CDR_FRAME_IDLE;
+
+	CDR_FRAME_STATUS get_cdr_frame_status();
+
 };
 }
