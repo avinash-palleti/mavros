@@ -42,7 +42,7 @@ void CDRConn::parse_buffer(uint8_t start, uint8_t *buf, const size_t bufsize, si
 }
 void CDRConn::cdr_frame_buffer(uint8_t *buffer, const size_t bytes_received, uint8_t start)
 {
-	memcpy(rxmsg+buf_len, buffer+start, bytes_received-start);
+	memcpy(rxmsg+buf_len, buffer+start, bytes_received);
 	buf_len+=bytes_received-start;
 }
 

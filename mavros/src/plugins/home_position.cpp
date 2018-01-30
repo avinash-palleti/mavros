@@ -140,9 +140,9 @@ private:
 			auto hp_approach_enu = ftf::transform_frame_ned_enu(Eigen::Vector3d(home_position.direction_x(),
 																home_position.direction_y(), home_position.direction_z()));
 			hp->header.stamp = ros::Time::now();
-			hp->geo.latitude = home_position.lat() / 1E7;		// deg
-			hp->geo.longitude = home_position.lon() / 1E7;		// deg
-			hp->geo.altitude = home_position.alt() / 1E3 + m_uas->geoid_to_ellipsoid_height(&hp->geo);	// in meters
+			hp->geo.latitude = home_position.lat() ;		// deg
+			hp->geo.longitude = home_position.lon() ;		// deg
+			hp->geo.altitude = home_position.alt() + m_uas->geoid_to_ellipsoid_height(&hp->geo);	// in meters
 			tf::quaternionEigenToMsg(q, hp->orientation);
 			tf::pointEigenToMsg(pos, hp->position);
 			tf::vectorEigenToMsg(hp_approach_enu, hp->approach);
@@ -185,6 +185,7 @@ private:
 				UAS_FCU(m_uas)->send_message_ignore_drop(hp);
 			}
 			case plugin::MSG_TYPE::CDR_MSG: {
+				std::cout << "Inside home_position_cb" << std::endl;
 				home_position_ hp_cdr;
 				hp_cdr.yaw(q.w());
 	
