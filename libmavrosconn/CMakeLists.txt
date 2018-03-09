@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(libmavconn)
+project(libmavrosconn)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -9,6 +9,8 @@ find_package(catkin REQUIRED)
 ## System dependencies are found with CMake's conventions
 find_package(console_bridge REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
+find_package(fastrtps REQUIRED)
+find_package(fastcdr REQUIRED)
 
 # add package modules path, not needed in dependend packages
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules")
@@ -26,7 +28,7 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES mavconn
   DEPENDS Boost mavlink console_bridge
-  CFG_EXTRAS libmavconn-extras.cmake
+  CFG_EXTRAS libmavrosconn-extras.cmake
 )
 
 ###########
@@ -47,10 +49,15 @@ add_library(mavconn
   src/serial.cpp
   src/udp.cpp
   src/tcp.cpp
+  src/mavlink/mavconn.cpp
+  src/cdr/cdrconn.cpp
+  src/cdr/home_position_.cpp
 )
 target_link_libraries(mavconn
   ${Boost_LIBRARIES}
   ${console_bridge_LIBRARIES}
+  fastrtps
+  fastcdr
 )
 
 # Use catkin-supplied em_expand macros to generate source files

@@ -46,6 +46,12 @@ struct MsgBuffer {
 		// paranoic check, it must be less than MAVLINK_MAX_PACKET_LEN
 		assert(len < MAX_SIZE);
 	}
+	
+	MsgBuffer(const Header *header) :
+		pos(0)
+	{
+		memcpy(data, header, sizeof(Header));
+	}
 
 	/**
 	 * @brief Buffer constructor for mavlink::Message derived object.

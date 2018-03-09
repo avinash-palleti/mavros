@@ -40,8 +40,6 @@ std::atomic<size_t> MAVConnInterface::conn_id_counter {0};
 MAVConnInterface::MAVConnInterface(uint8_t system_id, uint8_t component_id) :
 	sys_id(system_id),
 	comp_id(component_id),
-	m_status {},
-	m_buffer {},
 	tx_total_bytes(0),
 	rx_total_bytes(0),
 	last_tx_total_bytes(0),
@@ -50,12 +48,10 @@ MAVConnInterface::MAVConnInterface(uint8_t system_id, uint8_t component_id) :
 {
 	conn_id = conn_id_counter.fetch_add(1);
 	std::call_once(init_flag, init_msg_entry);
+	mavconn = new MAVConn();
+	cdrconn = new CDRConn();
 }
 
-mavlink_status_t MAVConnInterface::get_status()
-{
-	return m_status;
-}
 
 MAVConnInterface::IOStat MAVConnInterface::get_iostat()
 {
@@ -82,6 +78,16 @@ MAVConnInterface::IOStat MAVConnInterface::get_iostat()
 	return stat;
 }
 
+MAVConn* MAVConnInterface::get_mavlink_conn()
+{
+	return mavconn;
+}
+
+CDRConn* MAVConnInterface::get_cdr_conn()
+{
+	return cdrconn;
+}
+
 void MAVConnInterface::iostat_tx_add(size_t bytes)
 {
 	tx_total_bytes += bytes;
@@ -92,37 +98,61 @@ void MAVConnInterface::iostat_rx_add(size_t bytes)
 	rx_total_bytes += bytes;
 }
 
-void MAVConnInterface::parse_buffer(const char *pfx, uint8_t *buf, const size_t bufsize, size_t bytes_received)
+mavlink_status_t MAVConnInterface::get_status()
 {
-	mavlink::mavlink_status_t status;
-	mavlink::mavlink_message_t message;
+       return get_mavlink_conn()->get_status();
+}
 
-	assert(bufsize >= bytes_received);
-
-	iostat_rx_add(bytes_received);
-	for (; bytes_received > 0; bytes_received--) {
-		auto c = *buf++;
-
-		// based on mavlink_parse_char()
-		auto msg_received = static_cast<Framing>(mavlink::mavlink_frame_char_buffer(&m_buffer, &m_status, c, &message, &status));
-		if (msg_received == Framing::bad_crc || msg_received == Framing::bad_signature) {
-			mavlink::_mav_parse_error(&m_status);
-			m_status.msg_received = mavlink::MAVLINK_FRAMING_INCOMPLETE;
-			m_status.parse_state = mavlink::MAVLINK_PARSE_STATE_IDLE;
-			if (c == MAVLINK_STX) {
-				m_status.parse_state = mavlink::MAVLINK_PARSE_STATE_GOT_STX;
-				m_buffer.len = 0;
-				mavlink::mavlink_start_checksum(&m_buffer);
-			}
-		}
-
-		if (msg_received != Framing::incomplete) {
-			log_recv(pfx, message, msg_received);
-
-			if (message_received_cb)
-				message_received_cb(&message, msg_received);
-		}
+bool MAVConnInterface::isMavlink(uint8_t *buf, const size_t bufsize)
+{
+	unsigned i;
+	if(bufsize < 3)
+		return false;
+	i = 0;
+	while (i < (bufsize - 3) && buf[i] != 253 && buf[i] != 254)
+		i++;
+	// We need at least the first three bytes to get packet len
+	if (i == bufsize - 3) {
+		return false;
 	}
+
+	uint16_t packet_len;
+	if (buf[i] == 253) {
+		uint8_t payload_len = buf[i + 1];
+		uint8_t incompat_flags = buf[i + 2];
+		packet_len = payload_len + 12;
+
+		if (incompat_flags & 0x1) { // signing
+			packet_len += 13;
+		}
+	} else {
+		packet_len = buf[i + 1] + 8;
+	}
+	// packet is bigger than what we've read, better luck next time
+	if (i + packet_len > bufsize) {
+		return false;
+	}
+	return true;
+}
+
+bool MAVConnInterface::isCDR(uint8_t *buf, const size_t bufsize, uint8_t* start)
+{
+	uint16_t buf_start = 0;
+	uint16_t len;
+	if (bufsize < sizeof(struct Header)) // starting ">>>" + topic + seq + len + crchi + crclow
+		return false;
+	// look for starting ">>>"
+	for (buf_start = 0; buf_start + sizeof(struct Header) <= bufsize; ++buf_start) {
+		if ('>' == buf[buf_start] && memcmp(buf + buf_start, ">>>", 3) == 0) {
+			break;
+		}
+
+	}
+	if (buf_start >= (bufsize - sizeof(struct Header))) {
+		return false;
+	}
+	*start = buf_start;
+	return true;
 }
 
 void MAVConnInterface::log_recv(const char *pfx, mavlink_message_t &msg, Framing framing)
@@ -140,6 +170,11 @@ void MAVConnInterface::log_recv(const char *pfx, mavlink_message_t &msg, Framing
 			msg.msgid, msg.len, msg.sysid, msg.compid, msg.seq);
 }
 
+void MAVConnInterface::log_recv(const char *pfx, cdr_message_t &msg)
+{
+	logDebug("%s: recv: Topic ID: %u Bytes received: %u", pfx, msg.msgid, msg.len);
+}
+
 void MAVConnInterface::log_send(const char *pfx, const mavlink_message_t *msg)
 {
 	const char *proto_version_str = (msg->magic == MAVLINK_STX) ? "v2.0" : "v1.0";
@@ -148,6 +183,11 @@ void MAVConnInterface::log_send(const char *pfx, const mavlink_message_t *msg)
 			pfx, conn_id,
 			proto_version_str,
 			msg->msgid, msg->len, msg->sysid, msg->compid, msg->seq);
+}
+
+void MAVConnInterface::log_send(const char *pfx, cdr_message_t *msg)
+{
+	logDebug("%s: send: Topic ID: %u Send Bytes: %u", pfx, msg->msgid, msg->len);
 }
 
 void MAVConnInterface::log_send_obj(const char *pfx, const mavlink::Message &msg)
@@ -181,17 +221,52 @@ void MAVConnInterface::send_message_ignore_drop(const mavlink::Message &msg)
 	}
 }
 
+void MAVConnInterface::send_message(cdr_message_t *cdr_message)
+{
+	send_rtps_message(cdr_message);
+}
+
+template <class _C>
+void MAVConnInterface::send_message(_C &msg)
+{
+	int topic_id = uorbMap[typeid(_C).name()];
+	char data_buffer[1024] = {};
+	eprosima::fastcdr::FastBuffer cdrbuffer(data_buffer, sizeof(data_buffer));
+	eprosima::fastcdr::Cdr scdr(cdrbuffer);
+	msg->serialize(scdr);
+	mavconn::cdr_message_t cdr_message(topic_id, scdr.getSerializedDataLength(), (uint8_t*)scdr.getBufferPointer());
+	send_rtps_message(&cdr_message);
+}
+
+void MAVConnInterface::send_rtps_message(cdr_message_t *cdr_message)
+{
+	static struct Header header {
+		.marker = { '>', '>', '>' }
+	};	
+	cdr_message->getHeader(&header);
+	try {
+		send_header(&header);
+		send_bytes(cdr_message->getBuffer(), cdr_message->getLength());
+	}
+	catch (std::length_error &e) {
+		logError(PFX "%zu: DROPPED RTPS Message %d: %s",
+				conn_id,
+				cdr_message->getMsgid(),
+				e.what());
+	}
+}
+
 void MAVConnInterface::set_protocol_version(Protocol pver)
 {
 	if (pver == Protocol::V10)
-		m_status.flags |= MAVLINK_STATUS_FLAG_OUT_MAVLINK1;
+		get_mavlink_conn()->get_status_p()->flags |= MAVLINK_STATUS_FLAG_OUT_MAVLINK1;
 	else
-		m_status.flags &= ~(MAVLINK_STATUS_FLAG_OUT_MAVLINK1);
+		get_mavlink_conn()->get_status_p()->flags &= ~(MAVLINK_STATUS_FLAG_OUT_MAVLINK1);
 }
 
 Protocol MAVConnInterface::get_protocol_version()
 {
-	if (m_status.flags & MAVLINK_STATUS_FLAG_OUT_MAVLINK1)
+	if (get_mavlink_conn()->get_status_p()->flags & MAVLINK_STATUS_FLAG_OUT_MAVLINK1)
 		return Protocol::V10;
 	else
 		return Protocol::V20;

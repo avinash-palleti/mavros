@@ -25,7 +25,7 @@ using mavconn::Framing;
 using mavlink::mavlink_message_t;
 using plugin::PluginBase;
 using utils::enum_value;
-
+using mavconn::cdr_message_t;
 
 MavRos::MavRos() :
 	mavlink_nh("mavlink"),		// allow to namespace it
@@ -108,7 +108,12 @@ MavRos::MavRos() :
 
 	// ROS mavlink bridge
 	mavlink_pub = mavlink_nh.advertise<mavros_msgs::Mavlink>("from", 100);
+	cdr_pub = mavlink_nh.advertise<mavros_msgs::Rtps>("from_rtps", 100);
 	mavlink_sub = mavlink_nh.subscribe("to", 100, &MavRos::mavlink_sub_cb, this,
+		ros::TransportHints()
+			.unreliable().maxDatagramSize(1024)
+			.reliable());
+	cdr_sub = mavlink_nh.subscribe("to_rtps", 100, &MavRos::cdr_sub_cb, this,
 		ros::TransportHints()
 			.unreliable().maxDatagramSize(1024)
 			.reliable());
@@ -131,13 +136,19 @@ MavRos::MavRos() :
 	// connect FCU link
 
 	// XXX TODO: move workers to ROS Spinner, let mavconn threads to do only IO
-	fcu_link->message_received_cb = [this](const mavlink_message_t *msg, const Framing framing) {
+	fcu_link->get_mavlink_conn()->message_received_cb = [this](const mavlink_message_t *msg, const Framing framing) {
 		mavlink_pub_cb(msg, framing);
-		plugin_route_cb(msg, framing);
+		mavlink_plugin_route_cb(msg, framing);
 
 		if (gcs_link)
 			gcs_link->send_message_ignore_drop(msg);
 	};
+
+	fcu_link->get_cdr_conn()->message_received_cb = [this](mavconn::cdr_message_t *cdr_message) {
+		cdr_pub_cb(cdr_message);
+		cdr_plugin_route_cb(cdr_message);
+	};
+	
 
 	fcu_link->port_closed_cb = []() {
 		ROS_ERROR("FCU connection closed, mavros will be terminated.");
@@ -201,6 +212,20 @@ void MavRos::mavlink_pub_cb(const mavlink_message_t *mmsg, Framing framing)
 	mavlink_pub.publish(rmsg);
 }
 
+void MavRos::cdr_pub_cb(mavconn::cdr_message_t *cmsg)
+{
+	auto rmsg = boost::make_shared<mavros_msgs::Rtps>();
+
+	if  (cdr_pub.getNumSubscribers() == 0)
+		return;
+
+	rmsg->header.stamp = ros::Time::now();
+	rmsg->topic_id = cmsg->getMsgid();
+	rmsg->len = cmsg->getLength();
+	rmsg->buffer = std::move(mavros_msgs::Rtps::_buffer_type(cmsg->getBuffer(), cmsg->getBuffer() + cmsg->getLength()));
+	cdr_pub.publish(rmsg);
+}
+
 void MavRos::mavlink_sub_cb(const mavros_msgs::Mavlink::ConstPtr &rmsg)
 {
 	mavlink_message_t mmsg;
@@ -211,14 +236,55 @@ void MavRos::mavlink_sub_cb(const mavros_msgs::Mavlink::ConstPtr &rmsg)
 		ROS_ERROR("Drop mavlink packet: convert error.");
 }
 
-void MavRos::plugin_route_cb(const mavlink_message_t *mmsg, const Framing framing)
+void MavRos::cdr_sub_cb(const mavros_msgs::Rtps::ConstPtr &rmsg)
+{
+	uint8_t topic_id = (*rmsg).topic_id;
+	uint8_t len = (*rmsg).len;
+	uint8_t buffer[MAX_BUFFER_SIZE];
+	std::copy((*rmsg).buffer.begin(), (*rmsg).buffer.end(), buffer); 
+	mavconn::cdr_message_t cdr_message(topic_id, len, buffer);
+	UAS_FCU(&mav_uas)->send_rtps_message(&cdr_message);
+}
+
+struct output : public boost::static_visitor<void*>
+{
+  void* operator()(PluginBase::MavlinkHandlerInfo& d) const { return &d;}
+  void* operator()(PluginBase::CdrHandlerInfo& d) const { return &d;}
+};
+
+struct output_type : public boost::static_visitor<int>
+{
+	int operator()(PluginBase::MavlinkHandlerInfo& d) const {return MSG_TYPE::MAVLINK_MSG;}
+	int operator()(PluginBase::CdrHandlerInfo& d) const {return MSG_TYPE::CDR_MSG;}
+};
+
+void MavRos::mavlink_plugin_route_cb(const mavlink_message_t *mmsg, const Framing framing)
 {
 	auto it = plugin_subscriptions.find(mmsg->msgid);
 	if (it == plugin_subscriptions.end())
 		return;
 
-	for (auto &info : it->second)
-		std::get<3>(info)(mmsg, framing);
+	for (auto &info : it->second) {
+		PluginBase::MavlinkHandlerInfo* interim; 
+		interim = (PluginBase::MavlinkHandlerInfo*) boost::apply_visitor(output(), info);
+		std::get<3>(*interim)(mmsg, framing);
+	}
+}
+
+void MavRos::cdr_plugin_route_cb(mavconn::cdr_message_t *cmsg)
+{
+	auto it_msgid = cdrMsgMap.find(cmsg->getMsgid()); //get Actual message
+	if(it_msgid == cdrMsgMap.end())
+		return;
+	int msgId = it_msgid->second;
+	auto it = plugin_subscriptions.find(msgId);
+	if (it == plugin_subscriptions.end())
+		return;
+	for (auto &info : it->second) {
+		PluginBase::CdrHandlerInfo* interim; 
+		interim = (PluginBase::CdrHandlerInfo*) boost::apply_visitor(output(), info);
+		std::get<2>(*interim)(cmsg);
+	}
 }
 
 static bool pattern_match(std::string &pattern, std::string &pl_name)
@@ -286,9 +352,14 @@ void MavRos::add_plugin(std::string &pl_name, ros::V_string &blacklist, ros::V_s
 		ROS_INFO_STREAM("Plugin " << pl_name << " loaded");
 
 		for (auto &info : plugin->get_subscriptions()) {
-			auto msgid = std::get<0>(info);
-			auto msgname = std::get<1>(info);
-			auto type_hash_ = std::get<2>(info);
+			int plugin_type = boost::apply_visitor(output_type(), info);
+			if (plugin_type == MSG_TYPE::MAVLINK_MSG)
+			{
+			PluginBase::MavlinkHandlerInfo* interim; 
+			interim = (PluginBase::MavlinkHandlerInfo*) boost::apply_visitor(output(), info);
+			auto msgid = std::get<0>(*interim);
+			auto msgname = std::get<1>(*interim);
+			auto type_hash_ = std::get<2>(*interim);
 
 			std::string log_msgname;
 
@@ -313,7 +384,8 @@ void MavRos::add_plugin(std::string &pl_name, ros::V_string &blacklist, ros::V_s
 				if (!append_allowed) {
 					append_allowed = true;
 					for (auto &e : it->second) {
-						auto t2 = std::get<2>(e);
+						interim = (PluginBase::MavlinkHandlerInfo*) boost::apply_visitor(output(), e);
+						auto t2 = std::get<2>(*interim);
 						if (!is_mavlink_message_t(t2) && t2 != type_hash_) {
 							ROS_ERROR_STREAM(log_msgname << " routed to different message type (hash: " << t2 << ")");
 							append_allowed = false;
@@ -328,6 +400,20 @@ void MavRos::add_plugin(std::string &pl_name, ros::V_string &blacklist, ros::V_s
 				else
 					ROS_ERROR_STREAM(log_msgname << " handler dropped because this ID are used for another message type");
 			}
+		}
+		else if (plugin_type == MSG_TYPE::CDR_MSG)
+		{
+			PluginBase::CdrHandlerInfo* interim; 
+			interim = (PluginBase::CdrHandlerInfo*) boost::apply_visitor(output(), info);
+			auto topic_id = std::get<0>(*interim);
+			auto it = plugin_subscriptions.find(topic_id);
+			if (it == plugin_subscriptions.end()) {
+				plugin_subscriptions[topic_id] = PluginBase::Subscriptions{{info}};
+			}
+			else {
+				it->second.emplace_back(info);
+			}
+		}
 		}
 
 		plugin->initialize(mav_uas);

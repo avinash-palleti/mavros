@@ -177,6 +177,23 @@ void MAVConnTCPClient::send_message(const mavlink_message_t *message)
 	socket.get_io_service().post(std::bind(&MAVConnTCPClient::do_send, shared_from_this(), true));
 }
 
+void MAVConnTCPClient::send_header(const Header *header)
+{
+	if (!is_open()) {
+		logError(PFXd "send: channel closed!", conn_id);
+		return;
+	}
+	{
+		lock_guard lock(mutex);
+
+		if (tx_q.size() >= MAX_TXQ_SIZE)
+			throw std::length_error("MAVConnTCPClient::send_message: TX queue overflow");
+
+		tx_q.emplace_back(header);
+	}
+	io_service.post(std::bind(&MAVConnTCPClient::do_send, shared_from_this(), true));
+}
+
 void MAVConnTCPClient::send_message(const mavlink::Message &message)
 {
 	if (!is_open()) {
@@ -192,7 +209,7 @@ void MAVConnTCPClient::send_message(const mavlink::Message &message)
 		if (tx_q.size() >= MAX_TXQ_SIZE)
 			throw std::length_error("MAVConnTCPClient::send_message: TX queue overflow");
 
-		tx_q.emplace_back(message, get_status_p(), sys_id, comp_id);
+		tx_q.emplace_back(message, get_mavlink_conn()->get_status_p(), sys_id, comp_id);
 	}
 	socket.get_io_service().post(std::bind(&MAVConnTCPClient::do_send, shared_from_this(), true));
 }
@@ -208,8 +225,11 @@ void MAVConnTCPClient::do_recv()
 					sthis->close();
 					return;
 				}
-
-				sthis->parse_buffer(PFX, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
+				uint8_t start;
+				if (sthis->isMavlink(sthis->rx_buf.data(), sthis->rx_buf.size()))
+					sthis->get_mavlink_conn()->parse_buffer(PFX, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
+				else if(sthis->isCDR(sthis->rx_buf.data(), sthis->rx_buf.size(), &start))
+					sthis->get_cdr_conn()->parse_buffer(start, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
 				sthis->do_recv();
 			});
 }
@@ -383,6 +403,14 @@ void MAVConnTCPServer::send_message(const mavlink::Message &message)
 	lock_guard lock(mutex);
 	for (auto &instp : client_list) {
 		instp->send_message(message);
+	}
+}
+
+void MAVConnTCPServer::send_header(const Header *header)
+{
+	lock_guard lock(mutex);
+	for (auto &instp : client_list) {
+		instp->send_header(header);
 	}
 }
 

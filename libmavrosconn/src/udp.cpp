@@ -164,6 +164,27 @@ void MAVConnUDP::send_bytes(const uint8_t *bytes, size_t length)
 	io_service.post(std::bind(&MAVConnUDP::do_sendto, shared_from_this(), true));
 }
 
+void MAVConnUDP::send_header(const Header *header)
+{
+	if (!is_open()) {
+		logError(PFXd "send: channel closed!", conn_id);
+		return;
+	}
+	if (!remote_exists) {
+		logDebug(PFXd "send: Remote not known, message dropped.", conn_id);
+		return;
+	}
+	{
+		lock_guard lock(mutex);
+
+		if (tx_q.size() >= MAX_TXQ_SIZE)
+			throw std::length_error("MAVConnUDP::send_message: TX queue overflow");
+
+		tx_q.emplace_back(header);
+	}
+	io_service.post(std::bind(&MAVConnUDP::do_sendto, shared_from_this(), true));
+}
+
 void MAVConnUDP::send_message(const mavlink_message_t *message)
 {
 	assert(message != nullptr);
@@ -211,7 +232,7 @@ void MAVConnUDP::send_message(const mavlink::Message &message)
 		if (tx_q.size() >= MAX_TXQ_SIZE)
 			throw std::length_error("MAVConnUDP::send_message: TX queue overflow");
 
-		tx_q.emplace_back(message, get_status_p(), sys_id, comp_id);
+		tx_q.emplace_back(message, get_mavlink_conn()->get_status_p(), sys_id, comp_id);
 	}
 	io_service.post(std::bind(&MAVConnUDP::do_sendto, shared_from_this(), true));
 }
@@ -230,12 +251,25 @@ void MAVConnUDP::do_recvfrom()
 				}
 
 				if (sthis->remote_ep != sthis->last_remote_ep) {
-					logInform(PFXd "Remote address: %s", sthis->conn_id, to_string_ss(sthis->remote_ep).c_str());
 					sthis->remote_exists = true;
 					sthis->last_remote_ep = sthis->remote_ep;
 				}
-
-				sthis->parse_buffer(PFX, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
+				uint8_t start = 0;
+				if(sthis->get_cdr_conn()->get_cdr_frame_status() == CDRConn::CDR_FRAME_STATUS::CDR_FRAME_IDLE)
+				{
+					if(sthis->isCDR(sthis->rx_buf.data(), sthis->rx_buf.size(), &start))
+					{
+						sthis->get_cdr_conn()->parse_buffer(start, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
+					}
+					else if(sthis->isMavlink(sthis->rx_buf.data(), sthis->rx_buf.size()))
+					{
+						sthis->get_mavlink_conn()->parse_buffer(PFX, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
+					}
+				}
+				else if(sthis->get_cdr_conn()->get_cdr_frame_status() == CDRConn::CDR_FRAME_STATUS::CDR_FRAME_INCOMPLETE)
+				{
+					sthis->get_cdr_conn()->parse_buffer(start, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
+				}
 				sthis->do_recvfrom();
 			});
 }

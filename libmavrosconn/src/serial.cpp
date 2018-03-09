@@ -147,7 +147,24 @@ void MAVConnSerial::send_message(const mavlink::Message &message)
 		if (tx_q.size() >= MAX_TXQ_SIZE)
 			throw std::length_error("MAVConnSerial::send_message: TX queue overflow");
 
-		tx_q.emplace_back(message, get_status_p(), sys_id, comp_id);
+		tx_q.emplace_back(message, get_mavlink_conn()->get_status_p(), sys_id, comp_id);
+	}
+	io_service.post(std::bind(&MAVConnSerial::do_write, shared_from_this(), true));
+}
+
+void MAVConnSerial::send_header(const Header *header)
+{
+	if (!is_open()) {
+		logError(PFXd "send: channel closed!", conn_id);
+		return;
+	}
+	{
+		lock_guard lock(mutex);
+
+		if (tx_q.size() >= MAX_TXQ_SIZE)
+			throw std::length_error("MAVConnSerial::send_message: TX queue overflow");
+
+		tx_q.emplace_back(header);
 	}
 	io_service.post(std::bind(&MAVConnSerial::do_write, shared_from_this(), true));
 }
@@ -163,8 +180,11 @@ void MAVConnSerial::do_read(void)
 					sthis->close();
 					return;
 				}
-
-				sthis->parse_buffer(PFX, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
+				uint8_t start;
+				if (sthis->isMavlink(sthis->rx_buf.data(), sthis->rx_buf.size()))
+					sthis->get_mavlink_conn()->parse_buffer(PFX, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
+				else if(sthis->isCDR(sthis->rx_buf.data(), sthis->rx_buf.size(), &start))
+					sthis->get_cdr_conn()->parse_buffer(start, sthis->rx_buf.data(), sthis->rx_buf.size(), bytes_transferred);
 				sthis->do_read();
 			});
 }

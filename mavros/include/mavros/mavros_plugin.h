@@ -20,9 +20,11 @@
 #include <tuple>
 #include <vector>
 #include <functional>
+#include <unistd.h>
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <mavconn/interface.h>
 #include <mavros/mavros_uas.h>
+#include <mavconn/uorb_cdr_map.h>
 
 namespace mavros {
 namespace plugin {
@@ -30,6 +32,11 @@ namespace plugin {
 using mavros::UAS;
 typedef std::lock_guard<std::recursive_mutex> lock_guard;
 typedef std::unique_lock<std::recursive_mutex> unique_lock;
+
+enum MSG_TYPE {
+    MAVLINK_MSG,
+    CDR_MSG
+};
 
 /**
  * @brief MAVROS Plugin base class
@@ -41,11 +48,13 @@ private:
 
 public:
 	//! generic message handler callback
-	using HandlerCb = mavconn::MAVConnInterface::ReceivedCb;
+	using MavlinkHandlerCb = mavconn::MAVConn::ReceivedCb;
+	using CdrHandlerCb = mavconn::CDRConn::ReceivedCb;
 	//! Tuple: MSG ID, MSG NAME, message type into hash_code, message handler callback
-	using HandlerInfo = std::tuple<mavlink::msgid_t, const char*, size_t, HandlerCb>;
+	using MavlinkHandlerInfo = std::tuple<mavlink::msgid_t, const char*, size_t, MavlinkHandlerCb>;
+	using CdrHandlerInfo = std::tuple<uint8_t, const char*, CdrHandlerCb>;
 	//! Subscriptions vector
-	using Subscriptions = std::vector<HandlerInfo>;
+	using Subscriptions = std::vector<boost::variant<MavlinkHandlerInfo, CdrHandlerInfo> >;
 
 	// pluginlib return boost::shared_ptr
 	using Ptr = boost::shared_ptr<PluginBase>;
@@ -85,12 +94,19 @@ protected:
 	 * @param[in] fn  pointer to member function (handler)
 	 */
 	template<class _C>
-	HandlerInfo make_handler(const mavlink::msgid_t id, void (_C::*fn)(const mavlink::mavlink_message_t *msg, const mavconn::Framing framing)) {
+	MavlinkHandlerInfo make_handler(const mavlink::msgid_t id, void (_C::*fn)(const mavlink::mavlink_message_t *msg, const mavconn::Framing framing)) {
 		auto bfn = std::bind(fn, static_cast<_C*>(this), std::placeholders::_1, std::placeholders::_2);
 		const auto type_hash_ = typeid(mavlink::mavlink_message_t).hash_code();
 
-		return HandlerInfo{ id, nullptr, type_hash_, bfn };
+		return MavlinkHandlerInfo{ id, nullptr, type_hash_, bfn };
 	}
+
+	template<class _C>
+	CdrHandlerInfo make_handler(const uint8_t topic_id, void (_C::*fn)(const mavconn::cdr_message_t *msg)) {
+		auto bfn = std::bind(fn, static_cast<_C*>(this), std::placeholders::_1);
+		return CdrHandlerInfo{ topic_id, nullptr, bfn };
+	}
+
 
 	/**
 	 * Make subscription to message with automatic decoding.
@@ -98,13 +114,13 @@ protected:
 	 * @param[in] fn  pointer to member function (handler)
 	 */
 	template<class _C, class _T>
-	HandlerInfo make_handler(void (_C::*fn)(const mavlink::mavlink_message_t*, _T&)) {
+	MavlinkHandlerInfo make_handler(void (_C::*fn)(const mavlink::mavlink_message_t*, _T&)) {
 		auto bfn = std::bind(fn, static_cast<_C*>(this), std::placeholders::_1, std::placeholders::_2);
 		const auto id = _T::MSG_ID;
 		const auto name = _T::NAME;
 		const auto type_hash_ = typeid(_T).hash_code();
 
-		return HandlerInfo{
+		return MavlinkHandlerInfo{
 			id, name, type_hash_,
 			[bfn](const mavlink::mavlink_message_t *msg, const mavconn::Framing framing) {
 				if (framing != mavconn::Framing::ok)
@@ -114,6 +130,21 @@ protected:
 				_T obj;
 				obj.deserialize(map);
 
+				bfn(msg, obj);
+			}
+		};
+	}
+
+	template<class _C, class _T>
+	CdrHandlerInfo make_handler(void (_C::*fn)(const mavconn::cdr_message_t *msg, _T&)) {
+		int topic_id = uorbMap[typeid(_T).name()];
+		auto bfn = std::bind(fn, static_cast<_C*>(this), std::placeholders::_1, std::placeholders::_2);
+		return CdrHandlerInfo{topic_id, nullptr, 
+			[bfn](const mavconn::cdr_message_t *msg) {
+				_T obj;
+				eprosima::fastcdr::FastBuffer cdrbuffer((char *)msg->getBuffer(), msg->getLength());
+				eprosima::fastcdr::Cdr cdr_des(cdrbuffer);
+				obj.deserialize(cdr_des);
 				bfn(msg, obj);
 			}
 		};

@@ -24,8 +24,14 @@
 #include <mavros/mavros_plugin.h>
 #include <mavros/mavlink_diag.h>
 #include <mavros/utils.h>
+#include <mavconn/uorb_cdr_map.h>
 
 namespace mavros {
+
+enum MSG_TYPE {
+	MAVLINK_MSG,
+	CDR_MSG
+};
 /**
  * @brief MAVROS node class
  *
@@ -46,6 +52,8 @@ private:
 
 	ros::Publisher mavlink_pub;
 	ros::Subscriber mavlink_sub;
+	ros::Publisher cdr_pub;
+	ros::Subscriber cdr_sub;
 
 	diagnostic_updater::Updater gcs_diag_updater;
 	MavlinkDiag fcu_link_diag;
@@ -62,11 +70,14 @@ private:
 
 	//! fcu link -> ros
 	void mavlink_pub_cb(const mavlink::mavlink_message_t *mmsg, const mavconn::Framing framing);
+	void cdr_pub_cb(mavconn::cdr_message_t *cmsg);
 	//! ros -> fcu link
 	void mavlink_sub_cb(const mavros_msgs::Mavlink::ConstPtr &rmsg);
+	void cdr_sub_cb(const mavros_msgs::Rtps::ConstPtr &rmsg);
 
 	//! message router
-	void plugin_route_cb(const mavlink::mavlink_message_t *mmsg, const mavconn::Framing framing);
+	void mavlink_plugin_route_cb(const mavlink::mavlink_message_t *mmsg, const mavconn::Framing framing);
+	void cdr_plugin_route_cb(mavconn::cdr_message_t *mmsg);
 
 	//! load plugin
 	void add_plugin(std::string &pl_name, ros::V_string &blacklist, ros::V_string &whitelist);
